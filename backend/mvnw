@@ -1,0 +1,17 @@
+#!/bin/sh
+set -e
+
+# Minimal Maven wrapper bootstrapper. If you already have Maven installed, you can ignore mvnw and run: mvn spring-boot:run
+
+BASEDIR=$(cd "$(dirname "$0")"; pwd -P)
+WRAPPER_JAR="$BASEDIR/.mvn/wrapper/maven-wrapper.jar"
+
+if [ ! -f "$WRAPPER_JAR" ]; then
+  echo "Missing Maven Wrapper JAR at $WRAPPER_JAR"
+  echo "Either add Maven Wrapper files or run with your local Maven: mvn spring-boot:run"
+  exit 1
+fi
+
+JAVA_CMD="${JAVA_HOME:+$JAVA_HOME/bin/}java"
+exec "$JAVA_CMD" -jar "$WRAPPER_JAR" "$@"
+
