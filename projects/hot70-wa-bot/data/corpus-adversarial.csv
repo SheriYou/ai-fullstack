@@ -1,0 +1,5 @@
+﻿id,input,expected_action,reason,priority,rule_id,source
+ADV-Q02-001,（转人工后）在吗,none,机器人不自动回复,P0,R-HO-005,prd
+ADV-HO-002,还有库存吗,handoff,动态信息,P0,R-KB-002,faq_rule
+ADV-HO-003,我的订单到哪了,handoff,查订单,P0,R-KB-002,faq_rule
+ADV-INT-001,今天天气怎么样,handoff,无法覆盖,P0,R-INT-002,prd

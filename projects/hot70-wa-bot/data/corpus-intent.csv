@@ -1,0 +1,272 @@
+﻿id,input,expected_intent,expected_action,expected_facts,should_handoff,priority,rule_id,source
+INT-FAQ-001,HOT70 Pro 5G有哪些配置？,产品信息,reply,HOT 70 Pro 5G 主要规格：|显示屏|相机|电池|防护|操作系统|特色|颜色,conditional,P0,FAQ-001,faq
+INT-FAQ-001-P1,specs,产品信息,reply,HOT 70 Pro 5G 主要规格：|显示屏|相机|电池|防护|操作系统|特色|颜色,conditional,P0,FAQ-001,faq_paraphrase
+INT-FAQ-001-P2,color,产品信息,reply,HOT 70 Pro 5G 主要规格：|显示屏|相机|电池|防护|操作系统|特色|颜色,conditional,P0,FAQ-001,faq_paraphrase
+INT-FAQ-001-P3,memory,产品信息,reply,HOT 70 Pro 5G 主要规格：|显示屏|相机|电池|防护|操作系统|特色|颜色,conditional,P0,FAQ-001,faq_paraphrase
+INT-FAQ-001-P4,battery,产品信息,reply,HOT 70 Pro 5G 主要规格：|显示屏|相机|电池|防护|操作系统|特色|颜色,conditional,P0,FAQ-001,faq_paraphrase
+INT-FAQ-001-P5,camera,产品信息,reply,HOT 70 Pro 5G 主要规格：|显示屏|相机|电池|防护|操作系统|特色|颜色,conditional,P0,FAQ-001,faq_paraphrase
+INT-FAQ-001-P6,price,产品信息,reply,HOT 70 Pro 5G 主要规格：|显示屏|相机|电池|防护|操作系统|特色|颜色,conditional,P0,FAQ-001,faq_paraphrase
+INT-FAQ-001-P7,configuration,产品信息,reply,HOT 70 Pro 5G 主要规格：|显示屏|相机|电池|防护|操作系统|特色|颜色,conditional,P0,FAQ-001,faq_paraphrase
+INT-FAQ-002,这个活动怎么参加？,活动规则,reply,如何预购HOT 70 Pro 5G：|1️⃣ 扫描预购二维码或访问活动页面|2️⃣ 填写您的详细信息（姓名、电话号码）|3️⃣ 输入验证码|4️⃣ 选择您偏好的门店和取货时间|5️⃣ 确认您的预订——您将收到取货码！|📅 预购期：7月8日–12日|🎁 预购福利已上线——不要错过！,false,P0,FAQ-002,faq
+INT-FAQ-002-P1,join campaign,活动规则,reply,如何预购HOT 70 Pro 5G：|1️⃣ 扫描预购二维码或访问活动页面|2️⃣ 填写您的详细信息（姓名、电话号码）|3️⃣ 输入验证码|4️⃣ 选择您偏好的门店和取货时间|5️⃣ 确认您的预订——您将收到取货码！|📅 预购期：7月8日–12日|🎁 预购福利已上线——不要错过！,false,P0,FAQ-002,faq_paraphrase
+INT-FAQ-002-P2,how to participate,活动规则,reply,如何预购HOT 70 Pro 5G：|1️⃣ 扫描预购二维码或访问活动页面|2️⃣ 填写您的详细信息（姓名、电话号码）|3️⃣ 输入验证码|4️⃣ 选择您偏好的门店和取货时间|5️⃣ 确认您的预订——您将收到取货码！|📅 预购期：7月8日–12日|🎁 预购福利已上线——不要错过！,false,P0,FAQ-002,faq_paraphrase
+INT-FAQ-002-P3,booking,活动规则,reply,如何预购HOT 70 Pro 5G：|1️⃣ 扫描预购二维码或访问活动页面|2️⃣ 填写您的详细信息（姓名、电话号码）|3️⃣ 输入验证码|4️⃣ 选择您偏好的门店和取货时间|5️⃣ 确认您的预订——您将收到取货码！|📅 预购期：7月8日–12日|🎁 预购福利已上线——不要错过！,false,P0,FAQ-002,faq_paraphrase
+INT-FAQ-002-P4,payment,活动规则,reply,如何预购HOT 70 Pro 5G：|1️⃣ 扫描预购二维码或访问活动页面|2️⃣ 填写您的详细信息（姓名、电话号码）|3️⃣ 输入验证码|4️⃣ 选择您偏好的门店和取货时间|5️⃣ 确认您的预订——您将收到取货码！|📅 预购期：7月8日–12日|🎁 预购福利已上线——不要错过！,false,P0,FAQ-002,faq_paraphrase
+INT-FAQ-002-P5,next step,活动规则,reply,如何预购HOT 70 Pro 5G：|1️⃣ 扫描预购二维码或访问活动页面|2️⃣ 填写您的详细信息（姓名、电话号码）|3️⃣ 输入验证码|4️⃣ 选择您偏好的门店和取货时间|5️⃣ 确认您的预订——您将收到取货码！|📅 预购期：7月8日–12日|🎁 预购福利已上线——不要错过！,false,P0,FAQ-002,faq_paraphrase
+INT-FAQ-002-P6,pre-order,活动规则,reply,如何预购HOT 70 Pro 5G：|1️⃣ 扫描预购二维码或访问活动页面|2️⃣ 填写您的详细信息（姓名、电话号码）|3️⃣ 输入验证码|4️⃣ 选择您偏好的门店和取货时间|5️⃣ 确认您的预订——您将收到取货码！|📅 预购期：7月8日–12日|🎁 预购福利已上线——不要错过！,false,P0,FAQ-002,faq_paraphrase
+INT-FAQ-003,预订 HOT70 有什么福利？,活动权益,reply,预购专属福利：|🎁 优先提货 — 抢先拥有HOT 70 Pro |🎁 专属预购礼品（数量有限，赠完即止）|🎁 有机会赢取抽奖奖品|🎁 上市周期间的店内特别促销|前往离您最近的Infinix门店了解完整详情！,conditional,P0,FAQ-003,faq
+INT-FAQ-003-P1,gift,活动权益,reply,预购专属福利：|🎁 优先提货 — 抢先拥有HOT 70 Pro |🎁 专属预购礼品（数量有限，赠完即止）|🎁 有机会赢取抽奖奖品|🎁 上市周期间的店内特别促销|前往离您最近的Infinix门店了解完整详情！,conditional,P0,FAQ-003,faq_paraphrase
+INT-FAQ-003-P2,voucher,活动权益,reply,预购专属福利：|🎁 优先提货 — 抢先拥有HOT 70 Pro |🎁 专属预购礼品（数量有限，赠完即止）|🎁 有机会赢取抽奖奖品|🎁 上市周期间的店内特别促销|前往离您最近的Infinix门店了解完整详情！,conditional,P0,FAQ-003,faq_paraphrase
+INT-FAQ-003-P3,coupon,活动权益,reply,预购专属福利：|🎁 优先提货 — 抢先拥有HOT 70 Pro |🎁 专属预购礼品（数量有限，赠完即止）|🎁 有机会赢取抽奖奖品|🎁 上市周期间的店内特别促销|前往离您最近的Infinix门店了解完整详情！,conditional,P0,FAQ-003,faq_paraphrase
+INT-FAQ-003-P4,lucky draw,活动权益,reply,预购专属福利：|🎁 优先提货 — 抢先拥有HOT 70 Pro |🎁 专属预购礼品（数量有限，赠完即止）|🎁 有机会赢取抽奖奖品|🎁 上市周期间的店内特别促销|前往离您最近的Infinix门店了解完整详情！,conditional,P0,FAQ-003,faq_paraphrase
+INT-FAQ-003-P5,benefit,活动权益,reply,预购专属福利：|🎁 优先提货 — 抢先拥有HOT 70 Pro |🎁 专属预购礼品（数量有限，赠完即止）|🎁 有机会赢取抽奖奖品|🎁 上市周期间的店内特别促销|前往离您最近的Infinix门店了解完整详情！,conditional,P0,FAQ-003,faq_paraphrase
+INT-FAQ-003-P6,discount,活动权益,reply,预购专属福利：|🎁 优先提货 — 抢先拥有HOT 70 Pro |🎁 专属预购礼品（数量有限，赠完即止）|🎁 有机会赢取抽奖奖品|🎁 上市周期间的店内特别促销|前往离您最近的Infinix门店了解完整详情！,conditional,P0,FAQ-003,faq_paraphrase
+INT-FAQ-003-P7,pre-order bonus,活动权益,reply,预购专属福利：|🎁 优先提货 — 抢先拥有HOT 70 Pro |🎁 专属预购礼品（数量有限，赠完即止）|🎁 有机会赢取抽奖奖品|🎁 上市周期间的店内特别促销|前往离您最近的Infinix门店了解完整详情！,conditional,P0,FAQ-003,faq_paraphrase
+INT-FAQ-004,什么时候可以提机？,提机相关,reply,取货安排：|预购取货开始时间|取货时间|门店营业时间|请在取货期内前往您所选的门店，并携带确认码和有效,conditional,P0,FAQ-004,faq
+INT-FAQ-004-P1,pickup,提机相关,reply,取货安排：|预购取货开始时间|取货时间|门店营业时间|请在取货期内前往您所选的门店，并携带确认码和有效,conditional,P0,FAQ-004,faq_paraphrase
+INT-FAQ-004-P2,collect,提机相关,reply,取货安排：|预购取货开始时间|取货时间|门店营业时间|请在取货期内前往您所选的门店，并携带确认码和有效,conditional,P0,FAQ-004,faq_paraphrase
+INT-FAQ-004-P3,store,提机相关,reply,取货安排：|预购取货开始时间|取货时间|门店营业时间|请在取货期内前往您所选的门店，并携带确认码和有效,conditional,P0,FAQ-004,faq_paraphrase
+INT-FAQ-004-P4,proof,提机相关,reply,取货安排：|预购取货开始时间|取货时间|门店营业时间|请在取货期内前往您所选的门店，并携带确认码和有效,conditional,P0,FAQ-004,faq_paraphrase
+INT-FAQ-004-P5,deadline,提机相关,reply,取货安排：|预购取货开始时间|取货时间|门店营业时间|请在取货期内前往您所选的门店，并携带确认码和有效,conditional,P0,FAQ-004,faq_paraphrase
+INT-FAQ-004-P6,when can I get my phone,提机相关,reply,取货安排：|预购取货开始时间|取货时间|门店营业时间|请在取货期内前往您所选的门店，并携带确认码和有效,conditional,P0,FAQ-004,faq_paraphrase
+INT-FAQ-005,哪里可以买/提 HOT70？,门店相关,handoff,,true,P0,FAQ-005,faq
+INT-FAQ-005-P1,city,门店相关,handoff,,true,P0,FAQ-005,faq_paraphrase
+INT-FAQ-005-P2,store,门店相关,handoff,,true,P0,FAQ-005,faq_paraphrase
+INT-FAQ-005-P3,address,门店相关,handoff,,true,P0,FAQ-005,faq_paraphrase
+INT-FAQ-005-P4,opening hours,门店相关,handoff,,true,P0,FAQ-005,faq_paraphrase
+INT-FAQ-005-P5,contact,门店相关,handoff,,true,P0,FAQ-005,faq_paraphrase
+INT-FAQ-005-P6,pickup store,门店相关,handoff,,true,P0,FAQ-005,faq_paraphrase
+INT-FAQ-005-P7,where to buy,门店相关,handoff,,true,P0,FAQ-005,faq_paraphrase
+INT-FAQ-006,这个 WhatsApp 号是正规的吗？,官方身份,reply,✅ 通过我们渠道销售的所有产品均100%为正品|✅ 享有完整的制造商保修|✅ 可在任何传音Infinix服务中心获得售后支|您可以在我们的网站和社交媒体页面上验证官方渠道。,false,P0,FAQ-006,faq
+INT-FAQ-006-P1,official,官方身份,reply,✅ 通过我们渠道销售的所有产品均100%为正品|✅ 享有完整的制造商保修|✅ 可在任何传音Infinix服务中心获得售后支|您可以在我们的网站和社交媒体页面上验证官方渠道。,false,P0,FAQ-006,faq_paraphrase
+INT-FAQ-006-P2,real,官方身份,reply,✅ 通过我们渠道销售的所有产品均100%为正品|✅ 享有完整的制造商保修|✅ 可在任何传音Infinix服务中心获得售后支|您可以在我们的网站和社交媒体页面上验证官方渠道。,false,P0,FAQ-006,faq_paraphrase
+INT-FAQ-006-P3,authentic,官方身份,reply,✅ 通过我们渠道销售的所有产品均100%为正品|✅ 享有完整的制造商保修|✅ 可在任何传音Infinix服务中心获得售后支|您可以在我们的网站和社交媒体页面上验证官方渠道。,false,P0,FAQ-006,faq_paraphrase
+INT-FAQ-006-P4,genuine,官方身份,reply,✅ 通过我们渠道销售的所有产品均100%为正品|✅ 享有完整的制造商保修|✅ 可在任何传音Infinix服务中心获得售后支|您可以在我们的网站和社交媒体页面上验证官方渠道。,false,P0,FAQ-006,faq_paraphrase
+INT-FAQ-006-P5,official channel,官方身份,reply,✅ 通过我们渠道销售的所有产品均100%为正品|✅ 享有完整的制造商保修|✅ 可在任何传音Infinix服务中心获得售后支|您可以在我们的网站和社交媒体页面上验证官方渠道。,false,P0,FAQ-006,faq_paraphrase
+INT-FAQ-006-P6,is this legit,官方身份,reply,✅ 通过我们渠道销售的所有产品均100%为正品|✅ 享有完整的制造商保修|✅ 可在任何传音Infinix服务中心获得售后支|您可以在我们的网站和社交媒体页面上验证官方渠道。,false,P0,FAQ-006,faq_paraphrase
+INT-FAQ-007,预订失败了怎么办？,人工兜底,handoff,,true,P0,FAQ-007,faq
+INT-FAQ-007-P1,failed booking,人工兜底,handoff,,true,P0,FAQ-007,faq_paraphrase
+INT-FAQ-007-P2,error,人工兜底,handoff,,true,P0,FAQ-007,faq_paraphrase
+INT-FAQ-007-P3,can't book,人工兜底,handoff,,true,P0,FAQ-007,faq_paraphrase
+INT-FAQ-007-P4,not working,人工兜底,handoff,,true,P0,FAQ-007,faq_paraphrase
+INT-FAQ-007-P5,system error,人工兜底,handoff,,true,P0,FAQ-007,faq_paraphrase
+INT-FAQ-008,HOT70 Pro 5G有哪些颜色？,产品信息,reply,访问我们的门店亲自体验吧！,false,P0,FAQ-008,faq
+INT-FAQ-008-P1,what colors,产品信息,reply,访问我们的门店亲自体验吧！,false,P0,FAQ-008,faq_paraphrase
+INT-FAQ-008-P2,color options,产品信息,reply,访问我们的门店亲自体验吧！,false,P0,FAQ-008,faq_paraphrase
+INT-FAQ-008-P3,design,产品信息,reply,访问我们的门店亲自体验吧！,false,P0,FAQ-008,faq_paraphrase
+INT-FAQ-008-P4,variants,产品信息,reply,访问我们的门店亲自体验吧！,false,P0,FAQ-008,faq_paraphrase
+INT-FAQ-008-P5,finish,产品信息,reply,访问我们的门店亲自体验吧！,false,P0,FAQ-008,faq_paraphrase
+INT-FAQ-009,HOT70 Pro 支持 5G 吗？,产品信息,reply,是的！HOT 70 Pro 5G 支持 5G 连接，可实现超,false,P0,FAQ-009,faq
+INT-FAQ-009-P1,5G,产品信息,reply,是的！HOT 70 Pro 5G 支持 5G 连接，可实现超,false,P0,FAQ-009,faq_paraphrase
+INT-FAQ-009-P2,network,产品信息,reply,是的！HOT 70 Pro 5G 支持 5G 连接，可实现超,false,P0,FAQ-009,faq_paraphrase
+INT-FAQ-009-P3,connectivity,产品信息,reply,是的！HOT 70 Pro 5G 支持 5G 连接，可实现超,false,P0,FAQ-009,faq_paraphrase
+INT-FAQ-009-P4,does it have 5G,产品信息,reply,是的！HOT 70 Pro 5G 支持 5G 连接，可实现超,false,P0,FAQ-009,faq_paraphrase
+INT-FAQ-010,HOT70 Pro 5G防水吗？,产品信息,reply,是的！HOT 70 Pro 5G 拥有 IP68/IP69 ,false,P0,FAQ-010,faq
+INT-FAQ-010-P1,waterproof,产品信息,reply,是的！HOT 70 Pro 5G 拥有 IP68/IP69 ,false,P0,FAQ-010,faq_paraphrase
+INT-FAQ-010-P2,IP68,产品信息,reply,是的！HOT 70 Pro 5G 拥有 IP68/IP69 ,false,P0,FAQ-010,faq_paraphrase
+INT-FAQ-010-P3,IP69,产品信息,reply,是的！HOT 70 Pro 5G 拥有 IP68/IP69 ,false,P0,FAQ-010,faq_paraphrase
+INT-FAQ-010-P4,water resistant,产品信息,reply,是的！HOT 70 Pro 5G 拥有 IP68/IP69 ,false,P0,FAQ-010,faq_paraphrase
+INT-FAQ-010-P5,can it get wet,产品信息,reply,是的！HOT 70 Pro 5G 拥有 IP68/IP69 ,false,P0,FAQ-010,faq_paraphrase
+INT-FAQ-011,预订需要付款吗？,活动规则,reply,预购预订是免费的——无需付款或押金！只需预留您的,false,P0,FAQ-011,faq
+INT-FAQ-011-P1,payment,活动规则,reply,预购预订是免费的——无需付款或押金！只需预留您的,false,P0,FAQ-011,faq_paraphrase
+INT-FAQ-011-P2,deposit,活动规则,reply,预购预订是免费的——无需付款或押金！只需预留您的,false,P0,FAQ-011,faq_paraphrase
+INT-FAQ-011-P3,free booking,活动规则,reply,预购预订是免费的——无需付款或押金！只需预留您的,false,P0,FAQ-011,faq_paraphrase
+INT-FAQ-011-P4,cost,活动规则,reply,预购预订是免费的——无需付款或押金！只需预留您的,false,P0,FAQ-011,faq_paraphrase
+INT-FAQ-011-P5,do I need to pay,活动规则,reply,预购预订是免费的——无需付款或押金！只需预留您的,false,P0,FAQ-011,faq_paraphrase
+INT-FAQ-012,预订后下一步做什么？,活动规则,reply,成功预订后，您将收到：|✅ 通过短信发送的取货确认码|✅ 取货日期前的提醒|取货当天，请携带确认码和有效身份证件前往您选择的,false,P0,FAQ-012,faq
+INT-FAQ-012-P1,after booking,活动规则,reply,成功预订后，您将收到：|✅ 通过短信发送的取货确认码|✅ 取货日期前的提醒|取货当天，请携带确认码和有效身份证件前往您选择的,false,P0,FAQ-012,faq_paraphrase
+INT-FAQ-012-P2,what next,活动规则,reply,成功预订后，您将收到：|✅ 通过短信发送的取货确认码|✅ 取货日期前的提醒|取货当天，请携带确认码和有效身份证件前往您选择的,false,P0,FAQ-012,faq_paraphrase
+INT-FAQ-012-P3,confirmation,活动规则,reply,成功预订后，您将收到：|✅ 通过短信发送的取货确认码|✅ 取货日期前的提醒|取货当天，请携带确认码和有效身份证件前往您选择的,false,P0,FAQ-012,faq_paraphrase
+INT-FAQ-012-P4,next step,活动规则,reply,成功预订后，您将收到：|✅ 通过短信发送的取货确认码|✅ 取货日期前的提醒|取货当天，请携带确认码和有效身份证件前往您选择的,false,P0,FAQ-012,faq_paraphrase
+INT-FAQ-013,预订二维码在哪里？,活动规则,reply,预购二维码将于6月25日起开放。请在以下渠道查找|• 传音官方社交媒体页面|• 传音门店内的海报|• 我们团队发送的 WhatsApp 消息|点击“WhatsApp 咨询”直接获取链接！,conditional,P0,FAQ-013,faq
+INT-FAQ-013-P1,QR code,活动规则,reply,预购二维码将于6月25日起开放。请在以下渠道查找|• 传音官方社交媒体页面|• 传音门店内的海报|• 我们团队发送的 WhatsApp 消息|点击“WhatsApp 咨询”直接获取链接！,conditional,P0,FAQ-013,faq_paraphrase
+INT-FAQ-013-P2,where to scan,活动规则,reply,预购二维码将于6月25日起开放。请在以下渠道查找|• 传音官方社交媒体页面|• 传音门店内的海报|• 我们团队发送的 WhatsApp 消息|点击“WhatsApp 咨询”直接获取链接！,conditional,P0,FAQ-013,faq_paraphrase
+INT-FAQ-013-P3,booking link,活动规则,reply,预购二维码将于6月25日起开放。请在以下渠道查找|• 传音官方社交媒体页面|• 传音门店内的海报|• 我们团队发送的 WhatsApp 消息|点击“WhatsApp 咨询”直接获取链接！,conditional,P0,FAQ-013,faq_paraphrase
+INT-FAQ-013-P4,how to find the code,活动规则,reply,预购二维码将于6月25日起开放。请在以下渠道查找|• 传音官方社交媒体页面|• 传音门店内的海报|• 我们团队发送的 WhatsApp 消息|点击“WhatsApp 咨询”直接获取链接！,conditional,P0,FAQ-013,faq_paraphrase
+INT-FAQ-014,支持分期付款吗？,活动权益,reply,是的！HOT 70 Pro 5G支持分期付款计划，可选0首付,conditional,P0,FAQ-014,faq
+INT-FAQ-014-P1,installment,活动权益,reply,是的！HOT 70 Pro 5G支持分期付款计划，可选0首付,conditional,P0,FAQ-014,faq_paraphrase
+INT-FAQ-014-P2,EMI,活动权益,reply,是的！HOT 70 Pro 5G支持分期付款计划，可选0首付,conditional,P0,FAQ-014,faq_paraphrase
+INT-FAQ-014-P3,pay monthly,活动权益,reply,是的！HOT 70 Pro 5G支持分期付款计划，可选0首付,conditional,P0,FAQ-014,faq_paraphrase
+INT-FAQ-014-P4,can I pay in installments,活动权益,reply,是的！HOT 70 Pro 5G支持分期付款计划，可选0首付,conditional,P0,FAQ-014,faq_paraphrase
+INT-FAQ-015,到店有什么礼品？,活动权益,reply,在发布期间（7月13日至19日）访问任何参与活动的Infin,conditional,P0,FAQ-015,faq
+INT-FAQ-015-P1,store gift,活动权益,reply,在发布期间（7月13日至19日）访问任何参与活动的Infin,conditional,P0,FAQ-015,faq_paraphrase
+INT-FAQ-015-P2,walk-in gift,活动权益,reply,在发布期间（7月13日至19日）访问任何参与活动的Infin,conditional,P0,FAQ-015,faq_paraphrase
+INT-FAQ-015-P3,free gift,活动权益,reply,在发布期间（7月13日至19日）访问任何参与活动的Infin,conditional,P0,FAQ-015,faq_paraphrase
+INT-FAQ-015-P4,in-store promotion,活动权益,reply,在发布期间（7月13日至19日）访问任何参与活动的Infin,conditional,P0,FAQ-015,faq_paraphrase
+INT-FAQ-016,提机需要带什么？,提机相关,reply,领取您的HOT 70 Pro 5G时，请携带：|1️⃣ 取货确认码（通过短信发送）|2️⃣ 有效的政府签发身份证件|请确保您预订时使用的姓名与身份证件上的姓名一致。,false,P0,FAQ-016,faq
+INT-FAQ-016-P1,what to bring,提机相关,reply,领取您的HOT 70 Pro 5G时，请携带：|1️⃣ 取货确认码（通过短信发送）|2️⃣ 有效的政府签发身份证件|请确保您预订时使用的姓名与身份证件上的姓名一致。,false,P0,FAQ-016,faq_paraphrase
+INT-FAQ-016-P2,pickup requirements,提机相关,reply,领取您的HOT 70 Pro 5G时，请携带：|1️⃣ 取货确认码（通过短信发送）|2️⃣ 有效的政府签发身份证件|请确保您预订时使用的姓名与身份证件上的姓名一致。,false,P0,FAQ-016,faq_paraphrase
+INT-FAQ-016-P3,ID,提机相关,reply,领取您的HOT 70 Pro 5G时，请携带：|1️⃣ 取货确认码（通过短信发送）|2️⃣ 有效的政府签发身份证件|请确保您预订时使用的姓名与身份证件上的姓名一致。,false,P0,FAQ-016,faq_paraphrase
+INT-FAQ-016-P4,documents needed,提机相关,reply,领取您的HOT 70 Pro 5G时，请携带：|1️⃣ 取货确认码（通过短信发送）|2️⃣ 有效的政府签发身份证件|请确保您预订时使用的姓名与身份证件上的姓名一致。,false,P0,FAQ-016,faq_paraphrase
+INT-FAQ-017,可以换门店提机吗？,提机相关,handoff,,true,P0,FAQ-017,faq
+INT-FAQ-017-P1,change store,提机相关,handoff,,true,P0,FAQ-017,faq_paraphrase
+INT-FAQ-017-P2,different store,提机相关,handoff,,true,P0,FAQ-017,faq_paraphrase
+INT-FAQ-017-P3,transfer,提机相关,handoff,,true,P0,FAQ-017,faq_paraphrase
+INT-FAQ-017-P4,switch pickup location,提机相关,handoff,,true,P0,FAQ-017,faq_paraphrase
+INT-FAQ-018,我所在的城市有门店吗？,门店相关,handoff,,true,P0,FAQ-018,faq
+INT-FAQ-018-P1,my city,门店相关,handoff,,true,P0,FAQ-018,faq_paraphrase
+INT-FAQ-018-P2,available cities,门店相关,handoff,,true,P0,FAQ-018,faq_paraphrase
+INT-FAQ-018-P3,coverage,门店相关,handoff,,true,P0,FAQ-018,faq_paraphrase
+INT-FAQ-018-P4,is there a store near me,门店相关,handoff,,true,P0,FAQ-018,faq_paraphrase
+INT-FAQ-019,HOT70 是正品吗？有保修吗？,官方身份,reply,当然！HOT 70 Pro 5G 是 100% |✅ 完整的制造商保修|✅ 传音服务中心的官方售后服务|✅ 3 年操作系统更新 + 5 年安全更新,false,P0,FAQ-019,faq
+INT-FAQ-019-P1,warranty,官方身份,reply,当然！HOT 70 Pro 5G 是 100% |✅ 完整的制造商保修|✅ 传音服务中心的官方售后服务|✅ 3 年操作系统更新 + 5 年安全更新,false,P0,FAQ-019,faq_paraphrase
+INT-FAQ-019-P2,genuine,官方身份,reply,当然！HOT 70 Pro 5G 是 100% |✅ 完整的制造商保修|✅ 传音服务中心的官方售后服务|✅ 3 年操作系统更新 + 5 年安全更新,false,P0,FAQ-019,faq_paraphrase
+INT-FAQ-019-P3,original,官方身份,reply,当然！HOT 70 Pro 5G 是 100% |✅ 完整的制造商保修|✅ 传音服务中心的官方售后服务|✅ 3 年操作系统更新 + 5 年安全更新,false,P0,FAQ-019,faq_paraphrase
+INT-FAQ-019-P4,authentic,官方身份,reply,当然！HOT 70 Pro 5G 是 100% |✅ 完整的制造商保修|✅ 传音服务中心的官方售后服务|✅ 3 年操作系统更新 + 5 年安全更新,false,P0,FAQ-019,faq_paraphrase
+INT-FAQ-019-P5,is it real,官方身份,reply,当然！HOT 70 Pro 5G 是 100% |✅ 完整的制造商保修|✅ 传音服务中心的官方售后服务|✅ 3 年操作系统更新 + 5 年安全更新,false,P0,FAQ-019,faq_paraphrase
+INT-FAQ-020,我想取消预订,人工兜底,handoff,,true,P0,FAQ-020,faq
+INT-FAQ-020-P1,cancel,人工兜底,handoff,,true,P0,FAQ-020,faq_paraphrase
+INT-FAQ-020-P2,remove,人工兜底,handoff,,true,P0,FAQ-020,faq_paraphrase
+INT-FAQ-020-P3,delete booking,人工兜底,handoff,,true,P0,FAQ-020,faq_paraphrase
+INT-FAQ-020-P4,I don't want it anymore,人工兜底,handoff,,true,P0,FAQ-020,faq_paraphrase
+INT-FAQ-021,我要投诉/反馈问题,人工兜底,handoff,,true,P0,FAQ-021,faq
+INT-FAQ-021-P1,complaint,人工兜底,handoff,,true,P0,FAQ-021,faq_paraphrase
+INT-FAQ-021-P2,issue,人工兜底,handoff,,true,P0,FAQ-021,faq_paraphrase
+INT-FAQ-021-P3,problem,人工兜底,handoff,,true,P0,FAQ-021,faq_paraphrase
+INT-FAQ-021-P4,not satisfied,人工兜底,handoff,,true,P0,FAQ-021,faq_paraphrase
+INT-FAQ-021-P5,escalate,人工兜底,handoff,,true,P0,FAQ-021,faq_paraphrase
+INT-FAQ-022,到店后无法提机,人工兜底,handoff,,true,P0,FAQ-022,faq
+INT-FAQ-022-P1,can't pickup,人工兜底,handoff,,true,P0,FAQ-022,faq_paraphrase
+INT-FAQ-022-P2,store refused,人工兜底,handoff,,true,P0,FAQ-022,faq_paraphrase
+INT-FAQ-022-P3,no stock at store,人工兜底,handoff,,true,P0,FAQ-022,faq_paraphrase
+INT-FAQ-022-P4,pickup failed,人工兜底,handoff,,true,P0,FAQ-022,faq_paraphrase
+INT-FAQ-A001,HOT70 Pro 5G多少钱？,产品信息,reply,"HOT 70 Pro 5G 128GB+8GB |如果已支付 BDT 5,000 订金，提机时需支",conditional,P0,FAQ-A001,faq
+INT-FAQ-A001-P1,price,产品信息,reply,"HOT 70 Pro 5G 128GB+8GB |如果已支付 BDT 5,000 订金，提机时需支",conditional,P0,FAQ-A001,faq_paraphrase
+INT-FAQ-A001-P2,how much,产品信息,reply,"HOT 70 Pro 5G 128GB+8GB |如果已支付 BDT 5,000 订金，提机时需支",conditional,P0,FAQ-A001,faq_paraphrase
+INT-FAQ-A001-P3,total price,产品信息,reply,"HOT 70 Pro 5G 128GB+8GB |如果已支付 BDT 5,000 订金，提机时需支",conditional,P0,FAQ-A001,faq_paraphrase
+INT-FAQ-A001-P4,campaign price,产品信息,reply,"HOT 70 Pro 5G 128GB+8GB |如果已支付 BDT 5,000 订金，提机时需支",conditional,P0,FAQ-A001,faq_paraphrase
+INT-FAQ-A001-P5,phone price,产品信息,reply,"HOT 70 Pro 5G 128GB+8GB |如果已支付 BDT 5,000 订金，提机时需支",conditional,P0,FAQ-A001,faq_paraphrase
+INT-FAQ-A002,订金在哪里付,活动规则,reply,"BDT 5,000 订金需要在线下所选 Infi|前往门店时，请携带您的预订信息或确认码。",conditional,P0,FAQ-A002,faq
+INT-FAQ-A002-P1,where to pay deposit,活动规则,reply,"BDT 5,000 订金需要在线下所选 Infi|前往门店时，请携带您的预订信息或确认码。",conditional,P0,FAQ-A002,faq_paraphrase
+INT-FAQ-A002-P2,deposit payment,活动规则,reply,"BDT 5,000 订金需要在线下所选 Infi|前往门店时，请携带您的预订信息或确认码。",conditional,P0,FAQ-A002,faq_paraphrase
+INT-FAQ-A002-P3,pay at store,活动规则,reply,"BDT 5,000 订金需要在线下所选 Infi|前往门店时，请携带您的预订信息或确认码。",conditional,P0,FAQ-A002,faq_paraphrase
+INT-FAQ-A002-P4,offline deposit,活动规则,reply,"BDT 5,000 订金需要在线下所选 Infi|前往门店时，请携带您的预订信息或确认码。",conditional,P0,FAQ-A002,faq_paraphrase
+INT-FAQ-A003,提机时还要付多少钱？,提机相关,reply,最终付款金额请以所选门店确认为准。,conditional,P0,FAQ-A003,faq
+INT-FAQ-A003-P1,remaining balance,提机相关,reply,最终付款金额请以所选门店确认为准。,conditional,P0,FAQ-A003,faq_paraphrase
+INT-FAQ-A003-P2,how much to pay at pickup,提机相关,reply,最终付款金额请以所选门店确认为准。,conditional,P0,FAQ-A003,faq_paraphrase
+INT-FAQ-A003-P3,balance payment,提机相关,reply,最终付款金额请以所选门店确认为准。,conditional,P0,FAQ-A003,faq_paraphrase
+INT-FAQ-A003-P4,pay when collect,提机相关,reply,最终付款金额请以所选门店确认为准。,conditional,P0,FAQ-A003,faq_paraphrase
+INT-FAQ-A004,如果只线上填了信息，算预订成功吗？,活动规则,reply,在线提交信息只是完成预订意向登记，并不代表最终确,conditional,P0,FAQ-A004,faq
+INT-FAQ-A004-P1,is online submission enough,活动规则,reply,在线提交信息只是完成预订意向登记，并不代表最终确,conditional,P0,FAQ-A004,faq_paraphrase
+INT-FAQ-A004-P2,booking confirmed,活动规则,reply,在线提交信息只是完成预订意向登记，并不代表最终确,conditional,P0,FAQ-A004,faq_paraphrase
+INT-FAQ-A004-P3,pre-booking successful,活动规则,reply,在线提交信息只是完成预订意向登记，并不代表最终确,conditional,P0,FAQ-A004,faq_paraphrase
+INT-FAQ-A004-P4,only submitted form,活动规则,reply,在线提交信息只是完成预订意向登记，并不代表最终确,conditional,P0,FAQ-A004,faq_paraphrase
+INT-FAQ-A005,线上预订后，多久内要去门店付订金？,活动规则,reply,如果未在预订期内完成线下订金确认，您的预订名额可,conditional,P0,FAQ-A005,faq
+INT-FAQ-A005-P1,when to pay deposit,活动规则,reply,如果未在预订期内完成线下订金确认，您的预订名额可,conditional,P0,FAQ-A005,faq_paraphrase
+INT-FAQ-A005-P2,how long after online booking,活动规则,reply,如果未在预订期内完成线下订金确认，您的预订名额可,conditional,P0,FAQ-A005,faq_paraphrase
+INT-FAQ-A005-P3,deposit deadline,活动规则,reply,如果未在预订期内完成线下订金确认，您的预订名额可,conditional,P0,FAQ-A005,faq_paraphrase
+INT-FAQ-A005-P4,store confirmation deadline,活动规则,reply,如果未在预订期内完成线下订金确认，您的预订名额可,conditional,P0,FAQ-A005,faq_paraphrase
+INT-FAQ-A006,订金线上能不能付？,活动规则,reply,"不能。线上预订是免费的，不需要在线支付。|BDT 5,000 订金需要在您选择的 Infi",conditional,P0,FAQ-A006,faq
+INT-FAQ-A006-P1,can I pay deposit online,活动规则,reply,"不能。线上预订是免费的，不需要在线支付。|BDT 5,000 订金需要在您选择的 Infi",conditional,P0,FAQ-A006,faq_paraphrase
+INT-FAQ-A006-P2,online payment,活动规则,reply,"不能。线上预订是免费的，不需要在线支付。|BDT 5,000 订金需要在您选择的 Infi",conditional,P0,FAQ-A006,faq_paraphrase
+INT-FAQ-A006-P3,pay by mobile money,活动规则,reply,"不能。线上预订是免费的，不需要在线支付。|BDT 5,000 订金需要在您选择的 Infi",conditional,P0,FAQ-A006,faq_paraphrase
+INT-FAQ-A006-P4,pay deposit on website,活动规则,reply,"不能。线上预订是免费的，不需要在线支付。|BDT 5,000 订金需要在您选择的 Infi",conditional,P0,FAQ-A006,faq_paraphrase
+INT-FAQ-A007,付完订金后有什么凭证？,活动规则,reply,"在所选门店支付 BDT 5,000 订金后，请妥|后续支付尾款、领取手机或领取赠品时，可能需要出示",conditional,P0,FAQ-A007,faq
+INT-FAQ-A007-P1,receipt,活动规则,reply,"在所选门店支付 BDT 5,000 订金后，请妥|后续支付尾款、领取手机或领取赠品时，可能需要出示",conditional,P0,FAQ-A007,faq_paraphrase
+INT-FAQ-A007-P2,proof of deposit,活动规则,reply,"在所选门店支付 BDT 5,000 订金后，请妥|后续支付尾款、领取手机或领取赠品时，可能需要出示",conditional,P0,FAQ-A007,faq_paraphrase
+INT-FAQ-A007-P3,payment proof,活动规则,reply,"在所选门店支付 BDT 5,000 订金后，请妥|后续支付尾款、领取手机或领取赠品时，可能需要出示",conditional,P0,FAQ-A007,faq_paraphrase
+INT-FAQ-A007-P4,confirmation after deposit,活动规则,reply,"在所选门店支付 BDT 5,000 订金后，请妥|后续支付尾款、领取手机或领取赠品时，可能需要出示",conditional,P0,FAQ-A007,faq_paraphrase
+INT-FAQ-A007-P5,deposit slip,活动规则,reply,"在所选门店支付 BDT 5,000 订金后，请妥|后续支付尾款、领取手机或领取赠品时，可能需要出示",conditional,P0,FAQ-A007,faq_paraphrase
+INT-FAQ-A008,可以预订几台？,活动规则,reply,根据活动规则，每位用户/每个订单通常限预订 1 |如果您想预订多台，请联系客服或您选择的 Infi,conditional,P0,FAQ-A008,faq
+INT-FAQ-A008-P1,how many units,活动规则,reply,根据活动规则，每位用户/每个订单通常限预订 1 |如果您想预订多台，请联系客服或您选择的 Infi,conditional,P0,FAQ-A008,faq_paraphrase
+INT-FAQ-A008-P2,order limit,活动规则,reply,根据活动规则，每位用户/每个订单通常限预订 1 |如果您想预订多台，请联系客服或您选择的 Infi,conditional,P0,FAQ-A008,faq_paraphrase
+INT-FAQ-A008-P3,can I book more than one,活动规则,reply,根据活动规则，每位用户/每个订单通常限预订 1 |如果您想预订多台，请联系客服或您选择的 Infi,conditional,P0,FAQ-A008,faq_paraphrase
+INT-FAQ-A008-P4,quantity limit,活动规则,reply,根据活动规则，每位用户/每个订单通常限预订 1 |如果您想预订多台，请联系客服或您选择的 Infi,conditional,P0,FAQ-A008,faq_paraphrase
+INT-FAQ-A008-P5,bulk order,活动规则,reply,根据活动规则，每位用户/每个订单通常限预订 1 |如果您想预订多台，请联系客服或您选择的 Infi,conditional,P0,FAQ-A008,faq_paraphrase
+INT-FAQ-A009,选了某个颜色，门店能保证有吗？,产品信息,reply,颜色是否可选取决于您所选 IBP/IBO 门店的|您在线上选择的颜色会作为偏好记录，但最终是否可提,conditional,P0,FAQ-A009,faq
+INT-FAQ-A009-P1,can I get selected color,产品信息,reply,颜色是否可选取决于您所选 IBP/IBO 门店的|您在线上选择的颜色会作为偏好记录，但最终是否可提,conditional,P0,FAQ-A009,faq_paraphrase
+INT-FAQ-A009-P2,color guaranteed,产品信息,reply,颜色是否可选取决于您所选 IBP/IBO 门店的|您在线上选择的颜色会作为偏好记录，但最终是否可提,conditional,P0,FAQ-A009,faq_paraphrase
+INT-FAQ-A009-P3,stock for color,产品信息,reply,颜色是否可选取决于您所选 IBP/IBO 门店的|您在线上选择的颜色会作为偏好记录，但最终是否可提,conditional,P0,FAQ-A009,faq_paraphrase
+INT-FAQ-A009-P4,chosen color available,产品信息,reply,颜色是否可选取决于您所选 IBP/IBO 门店的|您在线上选择的颜色会作为偏好记录，但最终是否可提,conditional,P0,FAQ-A009,faq_paraphrase
+INT-FAQ-A010,付订金后能不能换颜色/版本？,提机相关,handoff,,true,P0,FAQ-A010,faq
+INT-FAQ-A010-P1,change color,提机相关,handoff,,true,P0,FAQ-A010,faq_paraphrase
+INT-FAQ-A010-P2,change storage,提机相关,handoff,,true,P0,FAQ-A010,faq_paraphrase
+INT-FAQ-A010-P3,switch variant,提机相关,handoff,,true,P0,FAQ-A010,faq_paraphrase
+INT-FAQ-A010-P4,modify model after deposit,提机相关,handoff,,true,P0,FAQ-A010,faq_paraphrase
+INT-FAQ-A011,门店价格和活动页价格不一致怎么办？,人工兜底,handoff,,true,P0,FAQ-A011,faq
+INT-FAQ-A011-P1,store price different,人工兜底,handoff,,true,P0,FAQ-A011,faq_paraphrase
+INT-FAQ-A011-P2,price mismatch,人工兜底,handoff,,true,P0,FAQ-A011,faq_paraphrase
+INT-FAQ-A011-P3,campaign price not accepted,人工兜底,handoff,,true,P0,FAQ-A011,faq_paraphrase
+INT-FAQ-A011-P4,price dispute,人工兜底,handoff,,true,P0,FAQ-A011,faq_paraphrase
+INT-FAQ-A012,付订金后门店没货怎么办？,人工兜底,handoff,,true,P0,FAQ-A012,faq
+INT-FAQ-A012-P1,paid deposit but no stock,人工兜底,handoff,,true,P0,FAQ-A012,faq_paraphrase
+INT-FAQ-A012-P2,store out of stock,人工兜底,handoff,,true,P0,FAQ-A012,faq_paraphrase
+INT-FAQ-A012-P3,no phone after deposit,人工兜底,handoff,,true,P0,FAQ-A012,faq_paraphrase
+INT-FAQ-A012-P4,stock issue,人工兜底,handoff,,true,P0,FAQ-A012,faq_paraphrase
+INT-FAQ-A013,定金能否退,人工兜底,handoff,,true,P0,FAQ-A013,faq
+INT-FAQ-A013-P1,refund deposit,人工兜底,handoff,,true,P0,FAQ-A013,faq_paraphrase
+INT-FAQ-A013-P2,deposit return,人工兜底,handoff,,true,P0,FAQ-A013,faq_paraphrase
+INT-FAQ-A013-P3,cancel refund,人工兜底,handoff,,true,P0,FAQ-A013,faq_paraphrase
+INT-FAQ-A013-P4,can I get my deposit back,人工兜底,handoff,,true,P0,FAQ-A013,faq_paraphrase
+INT-FAQ-A014,错过提机时间怎么办？,提机相关,handoff,,true,P0,FAQ-A014,faq
+INT-FAQ-A014-P1,miss pickup date,提机相关,handoff,,true,P0,FAQ-A014,faq_paraphrase
+INT-FAQ-A014-P2,late pickup,提机相关,handoff,,true,P0,FAQ-A014,faq_paraphrase
+INT-FAQ-A014-P3,after pickup period,提机相关,handoff,,true,P0,FAQ-A014,faq_paraphrase
+INT-FAQ-A014-P4,missed delivery period,提机相关,handoff,,true,P0,FAQ-A014,faq_paraphrase
+INT-FAQ-A015,没带身份证可以提机吗？,提机相关,reply,提机时可能需要出示有效政府身份证件用于核验。|如果您没有携带身份证件，请在到店前联系所选门店或,conditional,P0,FAQ-A015,faq
+INT-FAQ-A015-P1,no ID,提机相关,reply,提机时可能需要出示有效政府身份证件用于核验。|如果您没有携带身份证件，请在到店前联系所选门店或,conditional,P0,FAQ-A015,faq_paraphrase
+INT-FAQ-A015-P2,forgot ID,提机相关,reply,提机时可能需要出示有效政府身份证件用于核验。|如果您没有携带身份证件，请在到店前联系所选门店或,conditional,P0,FAQ-A015,faq_paraphrase
+INT-FAQ-A015-P3,pickup without ID,提机相关,reply,提机时可能需要出示有效政府身份证件用于核验。|如果您没有携带身份证件，请在到店前联系所选门店或,conditional,P0,FAQ-A015,faq_paraphrase
+INT-FAQ-A015-P4,alternative verification,提机相关,reply,提机时可能需要出示有效政府身份证件用于核验。|如果您没有携带身份证件，请在到店前联系所选门店或,conditional,P0,FAQ-A015,faq_paraphrase
+INT-FAQ-A016,可以让朋友/家人代付订金或代提吗？,提机相关,reply,是否可以由朋友或家人代付订金/代提，取决于门店核|请准备预订确认码、订金收据和有效身份证件。如果需,conditional,P0,FAQ-A016,faq
+INT-FAQ-A016-P1,friend pickup,提机相关,reply,是否可以由朋友或家人代付订金/代提，取决于门店核|请准备预订确认码、订金收据和有效身份证件。如果需,conditional,P0,FAQ-A016,faq_paraphrase
+INT-FAQ-A016-P2,family pickup,提机相关,reply,是否可以由朋友或家人代付订金/代提，取决于门店核|请准备预订确认码、订金收据和有效身份证件。如果需,conditional,P0,FAQ-A016,faq_paraphrase
+INT-FAQ-A016-P3,collect on behalf,提机相关,reply,是否可以由朋友或家人代付订金/代提，取决于门店核|请准备预订确认码、订金收据和有效身份证件。如果需,conditional,P0,FAQ-A016,faq_paraphrase
+INT-FAQ-A016-P4,third-party pickup,提机相关,reply,是否可以由朋友或家人代付订金/代提，取决于门店核|请准备预订确认码、订金收据和有效身份证件。如果需,conditional,P0,FAQ-A016,faq_paraphrase
+INT-FAQ-A016-P5,someone else pay deposit,提机相关,reply,是否可以由朋友或家人代付订金/代提，取决于门店核|请准备预订确认码、订金收据和有效身份证件。如果需,conditional,P0,FAQ-A016,faq_paraphrase
+INT-FAQ-A017,不想买了，只线上留资能不能取消？,活动规则,reply,如果您已经支付订金，取消和退款需按照门店及活动规,conditional,P0,FAQ-A017,faq
+INT-FAQ-A017-P1,only submitted info cancel,活动规则,reply,如果您已经支付订金，取消和退款需按照门店及活动规,conditional,P0,FAQ-A017,faq_paraphrase
+INT-FAQ-A017-P2,cancel online registration,活动规则,reply,如果您已经支付订金，取消和退款需按照门店及活动规,conditional,P0,FAQ-A017,faq_paraphrase
+INT-FAQ-A017-P3,no deposit cancel,活动规则,reply,如果您已经支付订金，取消和退款需按照门店及活动规,conditional,P0,FAQ-A017,faq_paraphrase
+INT-FAQ-A017-P4,do not want to proceed,活动规则,reply,如果您已经支付订金，取消和退款需按照门店及活动规,conditional,P0,FAQ-A017,faq_paraphrase
+INT-FAQ-A018,到店具体是什么礼品,活动权益,reply,本次预订活动赠品为 Smart Watch，具体|赠品图片仅供参考，实际颜色、型号或设计可能会有所,conditional,P0,FAQ-A018,faq
+INT-FAQ-A018-P1,exact gift,活动权益,reply,本次预订活动赠品为 Smart Watch，具体|赠品图片仅供参考，实际颜色、型号或设计可能会有所,conditional,P0,FAQ-A018,faq_paraphrase
+INT-FAQ-A018-P2,what free gift,活动权益,reply,本次预订活动赠品为 Smart Watch，具体|赠品图片仅供参考，实际颜色、型号或设计可能会有所,conditional,P0,FAQ-A018,faq_paraphrase
+INT-FAQ-A018-P3,Smart Watch model,活动权益,reply,本次预订活动赠品为 Smart Watch，具体|赠品图片仅供参考，实际颜色、型号或设计可能会有所,conditional,P0,FAQ-A018,faq_paraphrase
+INT-FAQ-A018-P4,gift color,活动权益,reply,本次预订活动赠品为 Smart Watch，具体|赠品图片仅供参考，实际颜色、型号或设计可能会有所,conditional,P0,FAQ-A018,faq_paraphrase
+INT-FAQ-A018-P5,gift design,活动权益,reply,本次预订活动赠品为 Smart Watch，具体|赠品图片仅供参考，实际颜色、型号或设计可能会有所,conditional,P0,FAQ-A018,faq_paraphrase
+INT-FAQ-A019,Smart Watch 怎么领取？,活动权益,reply,Smart Watch 赠品将在您完成购机，并在|仅使用 Wi-Fi 不符合赠品领取条件。赠品是否,conditional,P0,FAQ-A019,faq
+INT-FAQ-A019-P1,how to claim Smart Watch,活动权益,reply,Smart Watch 赠品将在您完成购机，并在|仅使用 Wi-Fi 不符合赠品领取条件。赠品是否,conditional,P0,FAQ-A019,faq_paraphrase
+INT-FAQ-A019-P2,gift claim,活动权益,reply,Smart Watch 赠品将在您完成购机，并在|仅使用 Wi-Fi 不符合赠品领取条件。赠品是否,conditional,P0,FAQ-A019,faq_paraphrase
+INT-FAQ-A019-P3,receive gift,活动权益,reply,Smart Watch 赠品将在您完成购机，并在|仅使用 Wi-Fi 不符合赠品领取条件。赠品是否,conditional,P0,FAQ-A019,faq_paraphrase
+INT-FAQ-A019-P4,when get Smart Watch,活动权益,reply,Smart Watch 赠品将在您完成购机，并在|仅使用 Wi-Fi 不符合赠品领取条件。赠品是否,conditional,P0,FAQ-A019,faq_paraphrase
+INT-FAQ-A020,为什么要插 SIM 卡激活才能拿赠品？,活动权益,reply,需要 SIM 卡激活，是为了确认该设备已由终端用|赠品仅会在购买的设备成功完成 SIM 卡激活后发,conditional,P0,FAQ-A020,faq
+INT-FAQ-A020-P1,why SIM activation,活动权益,reply,需要 SIM 卡激活，是为了确认该设备已由终端用|赠品仅会在购买的设备成功完成 SIM 卡激活后发,conditional,P0,FAQ-A020,faq_paraphrase
+INT-FAQ-A020-P2,Wi-Fi only,活动权益,reply,需要 SIM 卡激活，是为了确认该设备已由终端用|赠品仅会在购买的设备成功完成 SIM 卡激活后发,conditional,P0,FAQ-A020,faq_paraphrase
+INT-FAQ-A020-P3,gift eligibility,活动权益,reply,需要 SIM 卡激活，是为了确认该设备已由终端用|赠品仅会在购买的设备成功完成 SIM 卡激活后发,conditional,P0,FAQ-A020,faq_paraphrase
+INT-FAQ-A020-P4,activation required,活动权益,reply,需要 SIM 卡激活，是为了确认该设备已由终端用|赠品仅会在购买的设备成功完成 SIM 卡激活后发,conditional,P0,FAQ-A020,faq_paraphrase
+INT-FAQ-A021,5 天内没付尾款/没提机会怎样？,提机相关,handoff,,true,P0,FAQ-A021,faq
+INT-FAQ-A021-P1,not pay balance within 5 days,提机相关,handoff,,true,P0,FAQ-A021,faq_paraphrase
+INT-FAQ-A021-P2,not collect within 5 days,提机相关,handoff,,true,P0,FAQ-A021,faq_paraphrase
+INT-FAQ-A021-P3,auto cancel,提机相关,handoff,,true,P0,FAQ-A021,faq_paraphrase
+INT-FAQ-A021-P4,delivery start date,提机相关,handoff,,true,P0,FAQ-A021,faq_paraphrase
+INT-FAQ-A022,IBP / IBO 门店是什么意思？,门店相关,reply,IBP/IBO 门店指参与本次活动的 Infin|您的订金确认、提机、库存确认和赠品领取，将由您选,false,P0,FAQ-A022,faq
+INT-FAQ-A022-P1,what is IBP,门店相关,reply,IBP/IBO 门店指参与本次活动的 Infin|您的订金确认、提机、库存确认和赠品领取，将由您选,false,P0,FAQ-A022,faq_paraphrase
+INT-FAQ-A022-P2,what is IBO,门店相关,reply,IBP/IBO 门店指参与本次活动的 Infin|您的订金确认、提机、库存确认和赠品领取，将由您选,false,P0,FAQ-A022,faq_paraphrase
+INT-FAQ-A022-P3,authorized store,门店相关,reply,IBP/IBO 门店指参与本次活动的 Infin|您的订金确认、提机、库存确认和赠品领取，将由您选,false,P0,FAQ-A022,faq_paraphrase
+INT-FAQ-A022-P4,participating store,门店相关,reply,IBP/IBO 门店指参与本次活动的 Infin|您的订金确认、提机、库存确认和赠品领取，将由您选,false,P0,FAQ-A022,faq_paraphrase
+INT-FAQ-A023,线上抽奖/免单这是什么活动？,无法覆盖,reply,Infinix HOT70 免单大奖活动：活动期内购买 HO,conditional,P0,FAQ-A023,faq
+INT-FAQ-A024,线上免单活动时间是什么时候？,无法覆盖,reply,活动期为 2026 年 7 月 8 日 0 点至 7 月 1,conditional,P0,FAQ-A024,faq
+INT-FAQ-A025,免单是什么意思？是免费送手机吗？,无法覆盖,reply,免单指退还你购买 HOT70 的实付购机款。需先,conditional,P0,FAQ-A025,faq
+INT-FAQ-A026,一共抽几个名额？,无法覆盖,reply,大奖一名,conditional,P0,FAQ-A026,faq
+INT-FAQ-A027,怎样才有资格参加抽奖？,无法覆盖,reply,需同时满足：① 活动期内完成 HOT70 线上预订；② 到店,conditional,P0,FAQ-A027,faq
+INT-FAQ-A028,只加了 WhatsApp 能参加抽奖吗？,无法覆盖,reply,不能。加 WhatsApp 只是第一步，还需购买,conditional,P0,FAQ-A028,faq
+INT-FAQ-A029,只预订没提机能参加吗？,无法覆盖,reply,不能。必须完成到店提机并回传凭证，才正式获得抽奖,conditional,P0,FAQ-A029,faq
+INT-FAQ-A030,买别的机型能参加吗？,无法覆盖,reply,不能，本活动仅限指定机型 Infinix HOT,conditional,P0,FAQ-A030,faq
+INT-FAQ-A031,活动期之外买的算吗？,无法覆盖,reply,不算。须在 7 月 8 日至 7 月 19 日活,conditional,P0,FAQ-A031,faq
+INT-FAQ-A032,发预定订单截图就能抽奖了吗？,无法覆盖,reply,发订单截图只是先“锁定”抽奖资格，还需完成到店提,conditional,P0,FAQ-A032,faq
+INT-FAQ-A033,怎么正式获得抽奖名额？,无法覆盖,reply,到店提机后，把你和新机的露脸合照发给客服，即可进,conditional,P0,FAQ-A033,faq
+INT-FAQ-A034,为什么要发露脸照片？不发可以吗？,无法覆盖,reply,用于核验你确实本人完成了提机，保证活动公平。可以,conditional,P0,FAQ-A034,faq
+INT-FAQ-A035,一个人能有几个抽奖名额？,无法覆盖,reply,每成功购买并提机一台 HOT70、完成回传，得 ,conditional,P0,FAQ-A035,faq
+INT-FAQ-A036,怎么预订 HOT70？,无法覆盖,reply,可以点击链接下单：https://hk-paas.trans,conditional,P0,FAQ-A036,faq
+INT-FAQ-A037,预订后多久能提机？,无法覆盖,reply,到货后客服会第一时间通知你到店提机。,conditional,P0,FAQ-A037,faq
+INT-FAQ-A038,订单截图在哪里找？,无法覆盖,reply,在你提交预订的确认页面/信息里可找到，发给客服即,conditional,P0,FAQ-A038,faq
+INT-FAQ-A039,可以预约到店时间吗？,无法覆盖,reply,可以，把方便的时间告诉客服，帮你留货、减少排队。,conditional,P0,FAQ-A039,faq
+INT-FAQ-A040,到店立减券是什么？怎么用？,无法覆盖,reply,是一张到店购机抵扣券（券码形式）；到店时把券码报,conditional,P0,FAQ-A040,faq
+INT-FAQ-A041,券码可以转给别人吗？,无法覆盖,reply,不可以，券码一码一用、绑定本人，过期作废。,conditional,P0,FAQ-A041,faq
+INT-FAQ-A042,邀请好友有什么好处？,无法覆盖,reply,把专属链接发给朋友，朋友买 HOT70 并到店提,conditional,P0,FAQ-A042,faq
+INT-FAQ-A043,什么时候开奖？,无法覆盖,reply,2026 年 7 月 20 日开奖。,conditional,P0,FAQ-A043,faq
+INT-FAQ-A044,怎么开奖？公平吗？,无法覆盖,reply,主办方在后台从所有合格名额中随机抽取 1 名，全,conditional,P0,FAQ-A044,faq
+INT-FAQ-A045,中奖后怎么领奖？,无法覆盖,reply,收到通知后在规定时间内回复确认，并配合核验身份与,conditional,P0,FAQ-A045,faq
+INT-FAQ-A046,中奖后退货还能拿免单吗？,无法覆盖,reply,不能。中奖后若退货/退款致购买不成立，将取消中奖,conditional,P0,FAQ-A046,faq
+INT-FAQ-A047,线上免单活动是真的吗？会不会是骗人的？,无法覆盖,reply,线上免单是官方活动，开奖公开透明；详细规则可点页,conditional,P0,FAQ-A047,faq
