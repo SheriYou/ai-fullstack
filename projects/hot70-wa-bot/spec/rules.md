@@ -27,5 +27,13 @@
 | R-CS-001 | 坐席回复回到用户 WA | PRD §5.1 | P0 | L3 |
 | R-LOG-001 | 日志含 session_id/wa_id/intent/knowledge_hit/handoff 等 | PRD §7.5 | P0 | L4 |
 | R-TAG-001 | 5 类标签明确表达才写入（P1） | PRD §7.6 | P1 | L2 |
+| R-ERR-001 | 空/无效/非文本输入 → 友好提示重问，不崩溃 | exception-handling §2 | P0 | L2/L3 |
+| R-ERR-002 | 超范围/无覆盖 → 不编造，兜底话术+转人工 | exception-handling §2 | P0 | L2 |
+| R-ERR-003 | 库存/订单/现货/特殊优惠 → 说明后转人工 | exception-handling §2 | P0 | L2 |
+| R-ERR-004 | 通道/超时/API 异常 → 用户可见 apology + error 日志 | exception-handling §2 | P0 | L1/L3 |
+| R-ERR-005 | 低置信度/多意图 → 澄清或引导转人工 | exception-handling §2 | P1 | L2 |
+| R-ERR-006 | 辱骂/竞品/信任质疑 → 按运营口径，必要时转人工 | exception-handling §2 | P1 | L2/L3 |
+| R-ERR-007 | 转人工后机器人静默（同 R-HO-005） | Q02 | P0 | L3 |
+| R-ERR-008 | 图片/语音等非文本 → 引导发文字 | exception-handling §2 | P1 | L3 |
 
-**FAQ 已接入**（`prd/FAQ_knowledge_base.xlsx`，7 条，状态均为「待确认」— 运营签字前语料可跑但口径未冻结）。
+**异常场景**：见 `spec/exception-handling.md` + `data/exception-scenarios.csv`（32+ 条，含标准提示 hint）。（`prd/FAQ_knowledge_base.xlsx`，7 条，状态均为「待确认」— 运营签字前语料可跑但口径未冻结）。

@@ -5,7 +5,8 @@
 | 资产 | 文件 | 覆盖什么 | 谁 Review |
 |------|------|----------|-----------|
 | FAQ 语料 | `corpus-*.csv` + `corpus-review-for-ops.md` | M3/M4 问法+预期回复 | 运营 |
-| 完整用例 | `test-cases-full.csv` + `test-cases-full-review.md` | 冒烟/链路/字段/日志/指标 | 测试 |
+| 完整用例 | `test-cases-full.csv` + `test-cases-full-review.md` | 冒烟/链路/字段/日志/指标/异常 | 测试 |
+| 异常规则 | `spec/exception-handling.md` + `exception-scenarios.csv` | 边界/报错话术/转人工 | 测试+运营 |
 
 ```① SpecMiner     读 PRD/FAQ → spec/rules.md + trace-matrix.md
 ② TestFactory   规则 → data/corpus-*.csv（用例语料）

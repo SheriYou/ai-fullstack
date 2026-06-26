@@ -28,6 +28,8 @@ TYPE_MAP = {
     "faq_rule": "功能测试",
     "faq": "功能测试",
     "faq_paraphrase": "功能测试",
+    "exception": "异常测试",
+    "adversarial": "异常测试",
 }
 
 MODULE_LABEL = {
@@ -41,6 +43,7 @@ MODULE_LABEL = {
     "M8": "日志",
     "M9": "客户标签",
     "M10": "探索性",
+    "M11": "异常场景",
     "L4": "验收指标",
     "PROD": "商品信息",
     "ACT": "活动规则",
@@ -131,6 +134,20 @@ SYSTEM_TITLES = {
     "TC-L4-004": "验收指标：人工回复送达率≥99%",
     "TC-L4-005": "验收指标：平均响应时间≤10秒",
     "TC-L4-006": "验收指标：未命中问题100%可追踪",
+    "TC-M11-001": "用户发送空消息时，机器人友好提示重新输入",
+    "TC-M11-002": "用户只发 Emoji 时，机器人引导用文字描述或转人工",
+    "TC-M11-003": "用户发送乱码时，机器人兜底引导且不崩溃",
+    "TC-M11-004": "用户问超范围问题时，机器人不编造并转接人工",
+    "TC-M11-005": "FAQ 无覆盖的问题，机器人兜底话术后转人工",
+    "TC-M11-006": "转人工接口失败时，用户看到友好提示且日志有 error",
+    "TC-M11-007": "消息发送失败时，用户看到重试提示且日志有 error",
+    "TC-M11-008": "响应超时时，用户收到繁忙/稍候类 apology",
+    "TC-M11-009": "用户发送图片等非文本时，机器人引导发送文字",
+    "TC-M11-010": "用户辱骂时，机器人礼貌回应并转人工",
+    "TC-M11-011": "一条消息含多个意图时，机器人引导用户澄清",
+    "TC-M11-012": "会话超时后再进线，机器人欢迎回来并继续接待",
+    "TC-M11-013": "用户短时间刷屏时，机器人防重复且不崩溃",
+    "TC-M11-014": "系统异常时不向用户暴露内部错误码或字段名",
 }
 
 
@@ -181,6 +198,60 @@ def faq_title(r):
     if ho == "conditional":
         return f"{topic}：用户问「{q}」时机器人正确回复（必要时可转人工）"
     return f"{topic}：用户问「{q}」时机器人正确回复"
+
+
+def adversarial_title(r):
+    cat = r.get("category", "异常")
+    reason = r.get("reason", "")
+    inp = truncate(r.get("input", ""), 28)
+    action = r.get("expected_action", "")
+
+    if action == "none":
+        return f"{cat}：{reason or '转人工后'}机器人不再自动回复"
+    if action == "handoff":
+        return f"{cat}：用户发「{inp}」时说明原因并转接人工"
+    hint = r.get("expected_prompt_hint", "")
+    if hint:
+        return f"{cat}：用户发「{inp}」时回复含友好提示（{hint.split('|')[0]}）"
+    return f"{cat}：{reason or '异常输入'}时有合理提示"
+
+
+def load_adversarial_cases():
+    path = DATA / "corpus-adversarial.csv"
+    if not path.exists():
+        return []
+    rows = []
+    with path.open(encoding="utf-8-sig") as f:
+        for r in csv.DictReader(f):
+            cid = r["id"]
+            inp = r["input"]
+            action = r.get("expected_action", "")
+            hint = r.get("expected_prompt_hint", "")
+            reason = r.get("reason", "")
+            pri = r.get("priority", "P0")
+            cat_label = r.get("category", "异常场景")
+
+            name = adversarial_title(r)
+
+            if action == "none":
+                expected = "机器人不自动回复（Q02）"
+            elif action == "handoff":
+                expected = "触发转人工；回复说明原因且不编造"
+                if hint:
+                    expected += f"；用户可见提示含：{hint.replace('|', ' 或 ')}"
+            else:
+                expected = "机器人友好回复，不崩溃"
+                if hint:
+                    expected += f"；用户可见提示含：{hint.replace('|', ' 或 ')}"
+
+            steps = format_steps(
+                "G1 环境就绪；参见 spec/exception-handling.md",
+                inp,
+                expected,
+                f"规则：{r.get('rule_id','')}；原因：{reason}",
+            )
+            rows.append(row(cid, name, USER_STORY, pri, "异常测试", cat_label, steps))
+    return rows
 
 
 INTENT_CAT = {
@@ -275,7 +346,7 @@ def load_faq_cases():
 
 def main():
     out = PRD / "Hot70_all_test_cases.csv"
-    all_rows = load_system_cases() + load_faq_cases()
+    all_rows = load_system_cases() + load_adversarial_cases() + load_faq_cases()
 
     with out.open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.writer(f)
@@ -284,7 +355,7 @@ def main():
         for r in all_rows:
             w.writerow(r)
 
-    print(f"OK {out} total={len(all_rows)} (system + faq corpus)")
+    print(f"OK {out} total={len(all_rows)} (system + adversarial + faq corpus)")
 
 
 if __name__ == "__main__":

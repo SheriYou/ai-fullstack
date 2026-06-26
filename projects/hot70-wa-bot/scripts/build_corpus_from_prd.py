@@ -112,6 +112,29 @@ def extract_script_rows(src) -> list[dict]:
     return rows_out
 
 
+def load_exception_scenarios() -> list[dict]:
+    path = DATA / "exception-scenarios.csv"
+    if not path.exists():
+        return []
+    rows = []
+    with path.open(encoding="utf-8-sig") as f:
+        for r in csv.DictReader(f):
+            rows.append(
+                dict(
+                    id=r["id"],
+                    input=r["input"],
+                    expected_action=r["expected_action"],
+                    expected_prompt_hint=r.get("expected_prompt_hint", ""),
+                    reason=r.get("reason", ""),
+                    priority=r.get("priority", "P0"),
+                    rule_id=r.get("rule_id", ""),
+                    source=r.get("source", "exception"),
+                    category=r.get("category", ""),
+                )
+            )
+    return rows
+
+
 def build():
     src = load_sources()
     faq_rows = extract_faq_rows(src)
@@ -260,12 +283,14 @@ def build():
                 )
             )
 
-    adv_rows = [
-        dict(id="ADV-Q02-001", input="（转人工后）在吗", expected_action="none", reason="机器人不自动回复", priority="P0", rule_id="R-HO-005", source="prd"),
-        dict(id="ADV-HO-002", input="还有库存吗", expected_action="handoff", reason="动态信息", priority="P0", rule_id="R-KB-002", source="faq_rule"),
-        dict(id="ADV-HO-003", input="我的订单到哪了", expected_action="handoff", reason="查订单", priority="P0", rule_id="R-KB-002", source="faq_rule"),
-        dict(id="ADV-INT-001", input="今天天气怎么样", expected_action="handoff", reason="无法覆盖", priority="P0", rule_id="R-INT-002", source="prd"),
-    ]
+    adv_rows = load_exception_scenarios()
+    if not adv_rows:
+        adv_rows = [
+            dict(id="ADV-Q02-001", input="（转人工后）在吗", expected_action="none", expected_prompt_hint="", reason="机器人不自动回复", priority="P0", rule_id="R-HO-005", source="prd", category="会话异常"),
+            dict(id="ADV-HO-002", input="还有库存吗", expected_action="handoff", expected_prompt_hint="实时|转接", reason="动态信息", priority="P0", rule_id="R-KB-002", source="faq_rule", category="知识库异常"),
+            dict(id="ADV-HO-003", input="我的订单到哪了", expected_action="handoff", expected_prompt_hint="订单|转接", reason="查订单", priority="P0", rule_id="R-KB-002", source="faq_rule", category="知识库异常"),
+            dict(id="ADV-INT-001", input="今天天气怎么样", expected_action="handoff", expected_prompt_hint="无法|转接", reason="无法覆盖", priority="P0", rule_id="R-INT-002", source="prd", category="意图异常"),
+        ]
 
     def write_csv(path, fieldnames, rows):
         with path.open("w", encoding="utf-8-sig", newline="") as f:
@@ -295,7 +320,7 @@ def build():
     )
     write_csv(
         DATA / "corpus-adversarial.csv",
-        ["id", "input", "expected_action", "reason", "priority", "rule_id", "source"],
+        ["id", "category", "input", "expected_action", "expected_prompt_hint", "reason", "priority", "rule_id", "source"],
         adv_rows,
     )
 
@@ -306,6 +331,7 @@ def build():
         "kb": len(kb_rows),
         "handoff": len(handoff_rows),
         "script": len(script_rows_out),
+        "adversarial": len(adv_rows),
     }
     (DATA / "faq-export" / "build-summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"

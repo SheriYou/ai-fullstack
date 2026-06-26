@@ -14,7 +14,8 @@ description: 从规则表和 FAQ 生成 Gold/Paraphrase/Adversarial 语料 CSV�
 - `corpus-intent.csv` — 意图语料
 - `corpus-kb.csv` — 知识库语料
 - `corpus-handoff.csv` — 转人工语料
-- `corpus-adversarial.csv` — 边界/对抗
+- `corpus-adversarial.csv` — 边界/对抗/异常（含 `expected_prompt_hint`）
+- 源数据：`data/exception-scenarios.csv` + `spec/exception-handling.md`
 
 ## CSV 字段
 ```

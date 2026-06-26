@@ -1,4 +1,4 @@
-﻿id,category,input,expected_action,expected_prompt_hint,reason,priority,rule_id,source
+id,category,input,expected_action,expected_prompt_hint,reason,priority,rule_id,source
 ADV-ERR-001,输入异常,   ,reply,没有收到有效内容|请重新输入,空消息或纯空格,P0,R-ERR-001,exception
 ADV-ERR-002,输入异常,😀😀😀,reply,暂未理解|请用文字|转人工,仅 Emoji 无文字,P0,R-ERR-001,exception
 ADV-ERR-003,输入异常,asdfghjkl123,reply,暂未理解|产品|活动|转人工,无意义乱码,P0,R-ERR-001,exception
