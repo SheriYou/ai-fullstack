@@ -1,9 +1,9 @@
 {
-  "faq_entries": 69,
+  "faq_entries": 71,
   "script_entries": 0,
-  "intent": 271,
-  "kb": 271,
-  "handoff": 59,
+  "intent": 408,
+  "kb": 408,
+  "handoff": 58,
   "script": 0,
   "adversarial": 36
 }

@@ -1,6 +1,6 @@
 # Hot70 WhatsApp 机器人 — 测试计划
 
-> **版本**：V2.0 | **日期**：2026-06-26  
+> **版本**：V2.3 | **日期**：2026-06-30  
 > **依据**：Hot70 WhatsApp Bot PRD V0.3 | **协作模式**：Agent 量产 + 人工裁决  
 > **参考**：`docs/ai-activity-platform/03-reusable-test-scheme-v1.md`  
 > **框架落地**：`agent-human-test/`（独立可复用，不依赖 ship-pipeline）
@@ -41,14 +41,14 @@ WhatsApp 用户 → 智齿 WA API → 传音机器人 → 回复/转人工判断
 
 - 验：意图识别、知识库命中、响应时间、转人工触发
 
-**链路 2 — 人工接待（转人工后）**
+**链路 2 — 人工接待（转人工后，Q07 ✅ LOCAL 首版）**
 
 ```
-传音机器人 → 智齿在线客服 → 客服工作台 → 智齿 → 传音机器人 → 智齿 WA API → 用户
+用户 → 机器人 LOCAL handoff → 传音 Web 坐席（whatsapp-bot-frontend）→ sendManual → 智齿 WA API → 用户
 ```
 
-- 验：坐席分配、history 推送、人工回传、**机器人暂停自动回复**
-- 智齿 WA API 两条链路共用（WhatsApp 唯一出口）；链路 2 多了工作台与坐席
+- 验：Web 登录、认领/分配、**sendManual 回传**、机器人暂停（Q02）
+- **Defer**：智齿工作台 EXT 链路（external-handoff）见 `spec/handoff-dual-path.md`
 
 ### 2.3 标准执行顺序（Agent 流水线）
 
@@ -100,6 +100,7 @@ SpecMiner → TestFactory → [FAQ Review] → RegressionRunner → 人工 L3 �
 | 转人工 | ✓ | ✓ | ✓ | ✓ | ✓ |
 | 坐席分配 | — | ✓ | ✓ | ✓ | — |
 | 人工回传 | — | ✓ | — | ✓ | ✓ |
+| **Web 坐席 M11** | — | ✓ | — | ✓ | — |
 | 日志 | — | ✓ | ✓ | ✓ | ✓ |
 | 客户标签 P1 | ✓ | ✓ | ✓ | ✓ | △ |
 
@@ -109,9 +110,20 @@ SpecMiner → TestFactory → [FAQ Review] → RegressionRunner → 人工 L3 �
 |------|------|--------|
 | **G0** | FAQ/话术/转人工规则冻结；Q01/Q02 已裁决 | 产品 + 运营 |
 | **G1** | §8 环境 Checklist 全 ✓ | 开发 + 测试 |
-| **G2** | 冒烟 TC-SMOKE-001~005 全 Pass | 测试 |
-| **G3** | P0 用例通过率 ≥95%；Open P0/P1 = 0 | 测试 |
+| **G2** | 冒烟 TC-SMOKE-001~005 + **M11** 必过项 | 测试 |
+| **G2.5** | **L2 门禁** L2-G1~G3 达标（见 §3.2.1） | Agent + 测试 |
+| **G3** | P0 用例通过率 ≥95%；Open P0/P1 = 0（Fail 分类见 §9.1） | 测试 |
 | **G4** | §10 指标达标或书面豁免 | 产品 + 测试 |
+
+### 3.2.1 L2 门禁（G2.5）
+
+| 门禁 | 条件 | 数据源 | 阻塞 |
+|------|------|--------|------|
+| **L2-G1** | intent 路由 Pass ≥ **60%** | `corpus-intent` → `routing_pass` | 进 L3 P0 全量 |
+| **L2-G2** | kb 回复 Pass ≥ **60%** | `corpus-kb` → `business_result` | 进 L4 指标签字 |
+| **L2-G3** | `should_handoff=true` Pass ≥ **70%** | `corpus-handoff` | 转人工指标解读 |
+
+报告：`run_full_test.py` → §「L2 门禁」。Fail 须分类：`spec/l2-fail-classification.md`。
 
 ### 3.3 阶段排期（T0 = 提测日）
 
@@ -138,7 +150,8 @@ SpecMiner → TestFactory → [FAQ Review] → RegressionRunner → 人工 L3 �
 | T6 | 意图路由正确 | 意图准确率 ≥90% |
 | T7 | 响应及时 | 平均 ≤10s |
 
-**P0 模块**：消息接入、意图识别、知识库、转人工、坐席分配、人工回传、日志、转人工后机器人暂停。  
+**P0 模块**：消息接入、意图识别、知识库、转人工（LOCAL）、**Web 坐席 M11**、人工回传（Web）、日志、转人工后机器人暂停。  
+**Defer**：M6 智齿分配、M5-EXT。  
 **P1 可选**：客户标签。  
 **非功能**：可靠性、响应时间、iOS/Android 各 1 台、日志完整性。
 
@@ -194,9 +207,10 @@ agent-human-test/
     ├── blocking.md           # G0 阻塞项
     ├── checklist-env.md      # G1
     ├── checklist-smoke.md    # G2
+    ├── checklist-m11-web-agent.md  # M11 Web 坐席
     ├── data/corpus-*.csv     # TestFactory 产出
-    ├── scripts/              # RegressionRunner
-    └── reports/              # 报告
+    ├── scripts/run_full_test.py  # RegressionRunner 全量 L2
+    └── reports/runs/{run_id}/  # 报告归档
 ```
 
 新项目：复制 `projects/_template/` 或参照 `hot70-wa-bot/` 结构。
@@ -233,6 +247,8 @@ agent-human-test/
 |------|------|
 | 智齿沙箱 | WA API、在线客服、回调指向测试环境 |
 | 传音机器人测试环境 | 已部署，接口/日志文档齐全 |
+| **Web 坐席前端** | `whatsapp-bot-frontend` 部署至 test-paas；坐席测试账号 |
+| 代码仓库 | 后端 `whatsapp-bot-service`；前端 `whatsapp-bot-frontend` |
 | WhatsApp 测试号 | ≥2 |
 | 智齿工作台 | Hot70 专属技能组（传 groupid，已确认） |
 | 日志平台 | 可按 session_id / wa_id 查询 |
@@ -254,11 +270,13 @@ agent-human-test/
 
 | ID | 步骤 | 预期 |
 |----|------|------|
-| TC-SMOKE-001 | 发「你好」 | 10s 内机器人回复；日志有记录 |
-| TC-SMOKE-002 | 发「Hot70 多少钱」 | 含价格；knowledge_hit=true |
-| TC-SMOKE-003 | 发「转人工」 | handoff=true；工作台有会话；机器人暂停 |
-| TC-SMOKE-004 | 坐席回复 | 用户 WA 收到 |
-| TC-SMOKE-005 | 查 session_id 日志 | 全链路字段齐全 |
+| TC-SMOKE-001 | 发「你好」 | 10s 内机器人回复；messages 有 inbound |
+| TC-SMOKE-002 | 发「Hot70 多少钱」 | 含价格；RAG/tools 日志可观测 |
+| TC-SMOKE-003-LOCAL | 发「转人工」 | **Web 本地**分配；`isActiveAgent=0`（**Q07 P0**） |
+| TC-SMOKE-003-EXT | 工作台 external-handoff → 智齿 | 智齿工作台有会话；含 groupid（**Defer**，非 G2 阻塞） |
+| TC-SMOKE-003b | 转人工后再发 2 条 | 无机器人自动回复（Q02） |
+| TC-SMOKE-004 | **Web 坐席** ChatPanel 发回复 | 用户 WA / messages 收到（LOCAL M7） |
+| TC-SMOKE-005 | 查 agent/session + messages | 见 `spec/log-field-mapping.md` |
 
 ### 7.2 模块覆盖要点
 
@@ -267,12 +285,22 @@ agent-human-test/
 | **M2 消息** | 文本/英文/emoji/连发/超时/幂等 | 10 条 | L1/L3 |
 | **M3 意图** | 7 类意图 + 混合/超范围/低置信 | 每类 ≥10 + paraphrase | L2 |
 | **M4 知识库** | 7 类 FAQ 正向；动态信息/未命中/不编造 | 每类 ≥10 正 + 3 负 | L2/L3 |
-| **M5 转人工** | 8 类触发 + 6 字段校验 + 暂停 | 16+ | L1/L2/L3 |
-| **M6 坐席** | 传 **groupid** → 技能组内智齿分配（不测传音轮询） | 3 条 | L1/L3 |
-| **M7 人工回传** | 文本/多轮/送达率 ≥20 样本 | 5 | L3 |
-| **M8 日志** | §7.5 全字段 + 未命中可汇总 | 11 | L1/L4 |
-| **M9 标签 P1** | 5 类标签写入/不强行打标/更新 | 8 | L2 |
+| **M5 转人工** | **P0 LOCAL**：AI/用户触发 → Web 分配；L2 验 handoff 状态。**EXT Defer** | 16+ | L1/L2/L3 |
+| **M6 坐席** | 智齿 groupid 分配 — **Defer**（Q07；须 external-handoff） | 3 条 | — |
+| **M7 人工回传** | **P0 Web sendManual**；送达率 ≥20 样本；智齿回传 Defer | 5 | L3 |
+| **M8 日志** | agent/session + audit-logs + tools/logs（见映射表） | 11 | L1/L4 |
+| **M9 标签 P1** | 5 类智齿标签 — **Blocked**（后端未实现） | 8 | — |
 | **M10 探索** | 敏感词/重复问/双端 | 5 | L3 |
+| **M11 Web 坐席** | 登录、列表、claim、**sendManual**、Q02 静默；见 `checklist-m11-web-agent.md` | 6+ | L1/L3 |
+
+**语料分工（V2.3）** — 详见 `spec/corpus-strategy.md`
+
+| 语料 | L2 断言重点 |
+|------|-------------|
+| `corpus-intent` | 仅 **task_type 路由**，不断言 facts |
+| `corpus-kb` | **expected_facts** 关键事实 |
+| `corpus-handoff` | LOCAL **handoff**；conditional 放宽 |
+| `corpus-adversarial` | 不编造 / 转人工 |
 
 **知识库三原则（必测）**
 
@@ -290,22 +318,36 @@ agent-human-test/
 |------|------|------|------|
 | 消息接入成功率 | 100% | ≥50 | 日志 |
 | 消息发送成功率 | ≥99% | ≥50 | 日志 + 真机 |
-| 意图识别准确率 | ≥90% | ≥100 L2 | Agent 对比 |
-| 回复准确率 | ≥85% | ≥50 | 关键事实匹配；Fail 100% 人工复核 |
-| 转人工准确率 | ≥90% | ≥50 | corpus-handoff |
-| 人工回复送达率 | ≥99% | ≥20 | L3 记录 |
-| 平均响应时间 | ≤10s | ≥30 | 日志 |
+| 意图识别准确率 | ≥90% | ≥100 L2 | `corpus-intent` **routing_pass**（§8 自动化） |
+| 回复准确率 | ≥85% | ≥50 | `corpus-kb` 关键事实；Fail 人工复核 |
+| 转人工准确率 | ≥90% | ≥50 | `corpus-handoff`（LOCAL handoff） |
+| 人工回复送达率 | ≥99% | ≥20 | **L3 M11** sendManual 记录 |
+| 平均响应时间 | ≤10s | ≥30 | messages **timestamp**（L2 代理） |
 | 未命中可追踪率 | 100% | 全量 | 日志汇总 |
 | 标签写入成功率 P1 | ≥95% | ≥20 | 智齿后台 |
 
 **Pass 判定（回复）**：含 expected_facts 全部关键词；无矛盾；未编造。  
+**Fail 分类**：DEV_BUG / SPEC_DEFECT / HARNESS / ENV（`spec/l2-fail-classification.md`）。G3  Open P0 不含 SPEC_DEFECT。  
 **上线阈值**：Open P0 = 0；P1 ≤2 且书面接受；规格缺陷需产品修订计划。
+
+### 8.1 L2 自动化报告项
+
+`run_full_test.py` 产出：`reports/runs/{run_id}/test-report.md`（含 PRD §7.3、§8 意图/响应时间、L2 门禁、Fail 汇总）。
 
 ---
 
 ## 9. 缺陷、回归与交付
 
 **缺陷分级**：P0 阻塞上线（链路断/编造）→ P1 严重 → P2 一般 → P3 建议。
+
+### 9.1 L2 Fail 分类（G3 统计口径）
+
+| 分类 | 是否计 Open P0 |
+|------|----------------|
+| DEV_BUG | ✅ |
+| ENV | ✅ |
+| HARNESS | 视情况（脚本 fix 后重跑） |
+| SPEC_DEFECT | ❌ 走 FAQ/PRD 修订 |
 
 **回归触发**
 
@@ -314,10 +356,11 @@ agent-human-test/
 | 消息/回调 | 冒烟 + M2 |
 | 意图模型 | M3 全量语料 |
 | FAQ/话术 | M4 受影响类 + diff |
-| 转人工/分配 | M5 + M6 + M7 |
-| 发版前 | 冒烟 + P0 + L2 快跑 |
+| 转人工/分配 | M5-LOCAL + **M11** + M7 |
+| 前端 ChatPanel/分配 | 冒烟 + M11 |
+| 发版前 | 冒烟 + P0 + L2 快跑（`run_full_test.py`） |
 
-**Agent 自动化回归**：每日 L2（失败 >5% 告警）；FAQ 变更 diff；发版前 `smoke + intent + kb + handoff`。
+**Agent 自动化回归**：每日 L2（失败 >5% 告警）；FAQ 变更 diff；发版前 `run_full_test.py`。
 
 **交付物**
 
@@ -338,9 +381,10 @@ agent-human-test/
 | Q01 | 技能组 ID 还是坐席轮询？ | M5, M6 | 产品 + 智齿 | ✅ **技能组 ID** |
 | Q02 | 转人工后用户再发消息，机器人是否仍响应？ | M5, M7 | 产品 | ✅ **不自动回复** |
 | Q03 | 同一会话 / 回原坐席（技能组下由智齿负责） | M6 | 产品 + 智齿 | ⬜ 首版不测传音轮询 |
-| Q04 | history_messages 的 N？ | M5 | 开发 | ⬜ |
-| Q05 | 5 类标签智齿 tag ID？ | M9 | 运营 | ⬜ |
-| Q06 | 低置信度阈值与兜底？ | M3 | 产品 | ⬜ |
+| Q04 | history_messages 的 N？ | M5-EXT | 开发 | ✅ 默认 50 |
+| Q05 | 5 类标签智齿 tag ID？ | M9 | 运营 | 🚫 Blocked |
+| Q06 | 低置信度阈值与兜底？ | M3 | 产品 | ✅ 默认 0.65 |
+| Q07 | AI 转人工：本地 vs 智齿？ | M5,M6 | 产品 | ✅ **以代码为准：LOCAL Web**；EXT/M6 Defer |
 
 ---
 
@@ -377,3 +421,22 @@ agent-human-test/
 |------|------|----------|
 | V1.0 | 2026-06-26 | 初版 |
 | V2.0 | 2026-06-26 | 增测试思路/框架/Agent 设计；精简用例明细 |
+| V2.3 | 2026-06-30 | M11 Web 坐席；L2 门禁 G2.5；语料分工；Fail 分类；意图/响应时间自动化 |
+| V2.2 | 2026-06-30 | Q07 LOCAL；G2/M7 P0；003-EXT/M6 Defer |
+| V2.1 | 2026-06-30 | 对齐 whatsapp-bot-service：双路径转人工、L2 映射、M9 Blocked、日志字段 |
+
+---
+
+## 12. 实现差异与测试调整（V2.1）
+
+依据 `whatsapp-bot-service` 源码，测试资产已同步更新：
+
+| 差异 | 测试调整 | 文档 |
+|------|----------|------|
+| AI 转人工默认 **本地 Web 坐席**，非智齿 | G2/M5/M7 以 LOCAL 为 P0；003-EXT/M6 Defer | `spec/handoff-dual-path.md` |
+| `ChatMessage.intent` = task_type，非 PRD 七类 | L2 用映射表断言 | `spec/intent-task-mapping.md` |
+| 无 knowledge_hit / 智齿客户标签字段 | M8 改查组合 API；M9 Blocked | `spec/log-field-mapping.md` |
+| L2 无专用 chat API | webhook + agent/session | `spec/api-notes.md`、`run_full_test.py` |
+| 语料 intent/kb 重叠 | 分 corpus 断言 | `spec/corpus-strategy.md` |
+
+**Q07 ✅（2026-06-30）**：首版以 **代码为准** — 用户「转人工」→ **本地 Web 坐席**；智齿 EXT / M6 为 **Defer**（见 `spec/handoff-dual-path.md`）。

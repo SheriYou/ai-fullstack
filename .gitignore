@@ -18,3 +18,19 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+# 清理状态与日志（本地）
+.cleanup/
+
+# 测试 run 产出物（L2/L3 执行生成，不入库）
+projects/hot70-wa-bot/reports/runs/
+projects/hot70-wa-bot/reports/latest-run.json
+projects/hot70-wa-bot/reports/full-test-run.log
+projects/hot70-wa-bot/reports/test-results-latest.csv
+projects/hot70-wa-bot/reports/test-results-corpus-latest.csv
+projects/hot70-wa-bot/reports/test-results-*.csv
+projects/hot70-wa-bot/reports/test-results-corpus-*.csv
+projects/hot70-wa-bot/reports/test-run-*.md
+projects/hot70-wa-bot/reports/test-run-*.docx
+projects/hot70-wa-bot/reports/test-run-summary-*.json
+projects/hot70-wa-bot/reports/feishu-auth-qrcode.png

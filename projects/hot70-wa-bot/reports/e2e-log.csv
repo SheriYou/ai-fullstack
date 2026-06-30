@@ -1,1 +1,1 @@
-date,tester,wa_phone,session_id,input,bot_reply,detected_intent,knowledge_hit,handoff,response_sec,pass,notes
+date,tester,wa_phone,session_id,handoff_path,input,bot_reply,detected_task_type,rag_hit,handoff_status,response_sec,pass,notes

@@ -1,60 +1,59 @@
 ﻿id,input,expected_action,reason,should_handoff,priority,rule_id,source
-HO-FAQ-001,HOT70 Pro 5G有哪些配置？,conditional,如涉及价格不确定、商品状态变化、特殊报价，转人工确认。,conditional,P0,FAQ-001,faq
-HO-FAQ-003,预订 HOT70 有什么福利？,conditional,如用户询问特殊优惠、权益领取失败、优惠是否可叠加，转人工。,conditional,P0,FAQ-003,faq
-HO-FAQ-004,什么时候可以提机？,conditional,如用户到店无法提机、凭证异常、超过截止时间，转人工。,conditional,P0,FAQ-004,faq
-HO-FAQ-005,哪里可以买/提 HOT70？,handoff,如涉及实时库存、门店异常、城市未覆盖、具体门店确认，转人工。,true,P0,FAQ-005,faq
-HO-FAQ-007,预订失败了怎么办？,handoff,此类问题原则上进入人工兜底，并记录原因。,true,P0,FAQ-007,faq
-HO-FAQ-013,预订二维码在哪里？,conditional,如二维码打不开、链接失效，转人工。,conditional,P0,FAQ-013,faq
-HO-FAQ-014,支持分期付款吗？,conditional,具体分期方案需门店确认，转人工。,conditional,P0,FAQ-014,faq
-HO-FAQ-015,到店有什么礼品？,conditional,如礼品已发完、用户投诉，转人工。,conditional,P0,FAQ-015,faq
-HO-FAQ-017,可以换门店提机吗？,handoff,门店变更需人工处理。,true,P0,FAQ-017,faq
-HO-FAQ-018,我所在的城市有门店吗？,handoff,需确认具体城市覆盖情况。,true,P0,FAQ-018,faq
-HO-FAQ-020,我想取消预订,handoff,取消预订需人工处理。,true,P0,FAQ-020,faq
-HO-FAQ-021,我要投诉/反馈问题,handoff,直接进入人工。,true,P0,FAQ-021,faq
-HO-FAQ-022,到店后无法提机,handoff,直接进入人工，需协调门店。,true,P0,FAQ-022,faq
-HO-FAQ-A001,HOT70 Pro 5G多少钱？,conditional,门店报价不一致、特殊价格、优惠叠加、价格争议时转人工。,conditional,P0,FAQ-A001,faq
-HO-FAQ-A002,订金在哪里付,conditional,用户询问具体门店付款方式、收据、门店无法收款时转人工。,conditional,P0,FAQ-A002,faq
-HO-FAQ-A003,提机时还要付多少钱？,conditional,用户已享受其他优惠、门店金额不一致、付款争议时转人工。,conditional,P0,FAQ-A003,faq
-HO-FAQ-A004,如果只线上填了信息，算预订成功吗？,conditional,用户已提交但门店查不到记录、没收到确认信息、是否能保留名额时转人工。,conditional,P0,FAQ-A004,faq
-HO-FAQ-A005,线上预订后，多久内要去门店付订金？,conditional,用户问是否可延期、门店是否能保留名额、已错过预订期时转人工。,conditional,P0,FAQ-A005,faq
-HO-FAQ-A006,订金线上能不能付？,conditional,用户询问门店支持哪些付款方式、支付失败、要求线上转账时转人工。,conditional,P0,FAQ-A006,faq
-HO-FAQ-A007,付完订金后有什么凭证？,conditional,用户遗失凭证、门店未提供收据、门店查不到付款记录时转人工。,conditional,P0,FAQ-A007,faq
-HO-FAQ-A008,可以预订几台？,conditional,多台购买、团购、批量采购、门店特殊处理时转人工。,conditional,P0,FAQ-A008,faq
-HO-FAQ-A009,选了某个颜色，门店能保证有吗？,conditional,用户强烈要求某一颜色、查询具体门店颜色库存、投诉颜色不一致时转人工。,conditional,P0,FAQ-A009,faq
-HO-FAQ-A010,付订金后能不能换颜色/版本？,handoff,已付订金后修改颜色/版本需人工或门店确认。,true,P0,FAQ-A010,faq
-HO-FAQ-A011,门店价格和活动页价格不一致怎么办？,handoff,价格争议、门店报价不一致、优惠不一致，直接转人工。,true,P0,FAQ-A011,faq
-HO-FAQ-A012,付订金后门店没货怎么办？,handoff,库存异常、已付订金但无货、用户投诉，直接转人工。,true,P0,FAQ-A012,faq
-HO-FAQ-A013,定金能否退,handoff,所有退款类问题必须转人工，不建议机器人承诺可退/不可退。,true,P0,FAQ-A013,faq
-HO-FAQ-A014,错过提机时间怎么办？,handoff,逾期提机、自动取消、订金处理、是否仍可提机，均转人工。,true,P0,FAQ-A014,faq
-HO-FAQ-A015,没带身份证可以提机吗？,conditional,无证件、证件信息不一致、身份核验异常时转人工。,conditional,P0,FAQ-A015,faq
-HO-FAQ-A016,可以让朋友/家人代付订金或代提吗？,conditional,涉及代提、身份核验、代付订金，建议转人工或门店确认。,conditional,P0,FAQ-A016,faq
-HO-FAQ-A017,不想买了，只线上留资能不能取消？,conditional,仅线上留资可低风险处理；已付订金的取消/退款必须转人工。,conditional,P0,FAQ-A017,faq
-HO-FAQ-A018,到店具体是什么礼品,conditional,用户问赠品型号、颜色、库存、是否一定有、是否可换时转人工。,conditional,P0,FAQ-A018,faq
-HO-FAQ-A019,Smart Watch 怎么领取？,conditional,用户问激活多久生效、赠品未收到、门店不给赠品、SIM 激活异常时转人工。,conditional,P0,FAQ-A019,faq
-HO-FAQ-A020,为什么要插 SIM 卡激活才能拿赠品？,conditional,用户对激活规则有异议、SIM 激活失败、赠品资格争议时转人工。,conditional,P0,FAQ-A020,faq
-HO-FAQ-A021,5 天内没付尾款/没提机会怎样？,handoff,涉及自动取消、逾期提机、订金处理、是否能延期，直接转人工。,true,P0,FAQ-A021,faq
-HO-FAQ-A023,线上抽奖/免单这是什么活动？,conditional,私域侧活动,conditional,P0,FAQ-A023,faq
-HO-FAQ-A024,线上免单活动时间是什么时候？,conditional,私域侧活动,conditional,P0,FAQ-A024,faq
-HO-FAQ-A025,免单是什么意思？是免费送手机吗？,conditional,私域侧活动,conditional,P0,FAQ-A025,faq
-HO-FAQ-A026,一共抽几个名额？,conditional,私域侧活动,conditional,P0,FAQ-A026,faq
-HO-FAQ-A027,怎样才有资格参加抽奖？,conditional,私域侧活动,conditional,P0,FAQ-A027,faq
-HO-FAQ-A028,只加了 WhatsApp 能参加抽奖吗？,conditional,私域侧活动,conditional,P0,FAQ-A028,faq
-HO-FAQ-A029,只预订没提机能参加吗？,conditional,私域侧活动,conditional,P0,FAQ-A029,faq
-HO-FAQ-A030,买别的机型能参加吗？,conditional,私域侧活动,conditional,P0,FAQ-A030,faq
-HO-FAQ-A031,活动期之外买的算吗？,conditional,私域侧活动,conditional,P0,FAQ-A031,faq
-HO-FAQ-A032,发预定订单截图就能抽奖了吗？,conditional,私域侧活动,conditional,P0,FAQ-A032,faq
-HO-FAQ-A033,怎么正式获得抽奖名额？,conditional,私域侧活动,conditional,P0,FAQ-A033,faq
-HO-FAQ-A034,为什么要发露脸照片？不发可以吗？,conditional,私域侧活动,conditional,P0,FAQ-A034,faq
-HO-FAQ-A035,一个人能有几个抽奖名额？,conditional,私域侧活动,conditional,P0,FAQ-A035,faq
-HO-FAQ-A036,怎么预订 HOT70？,conditional,私域侧活动,conditional,P0,FAQ-A036,faq
-HO-FAQ-A037,预订后多久能提机？,conditional,私域侧活动,conditional,P0,FAQ-A037,faq
-HO-FAQ-A038,订单截图在哪里找？,conditional,私域侧活动,conditional,P0,FAQ-A038,faq
-HO-FAQ-A039,可以预约到店时间吗？,conditional,私域侧活动,conditional,P0,FAQ-A039,faq
-HO-FAQ-A040,到店立减券是什么？怎么用？,conditional,私域侧活动,conditional,P0,FAQ-A040,faq
-HO-FAQ-A041,券码可以转给别人吗？,conditional,私域侧活动,conditional,P0,FAQ-A041,faq
-HO-FAQ-A042,邀请好友有什么好处？,conditional,私域侧活动,conditional,P0,FAQ-A042,faq
-HO-FAQ-A043,什么时候开奖？,conditional,私域侧活动,conditional,P0,FAQ-A043,faq
-HO-FAQ-A044,怎么开奖？公平吗？,conditional,私域侧活动,conditional,P0,FAQ-A044,faq
-HO-FAQ-A045,中奖后怎么领奖？,conditional,私域侧活动,conditional,P0,FAQ-A045,faq
-HO-FAQ-A046,中奖后退货还能拿免单吗？,conditional,私域侧活动,conditional,P0,FAQ-A046,faq
-HO-FAQ-A047,线上免单活动是真的吗？会不会是骗人的？,conditional,私域侧活动,conditional,P0,FAQ-A047,faq
+HO-FAQ-A001,HOT70 Pro 5G有哪些配置？,conditional,如涉及价格不确定、商品状态变化、特殊报价，转人工确认。,conditional,P0,FAQ-A001,faq
+HO-FAQ-A003,预订 HOT 70 Pro有什么福利？,conditional,如用户询问特殊优惠、权益领取失败、优惠是否可叠加，转人工。,conditional,P0,FAQ-A003,faq
+HO-FAQ-A004,什么时候可以提机？,conditional,如用户到店无法提机、凭证异常、超过截止时间，转人工。,conditional,P0,FAQ-A004,faq
+HO-FAQ-A005,哪里可以买/提HOT 70 Pro？,conditional,如涉及实时库存、门店异常、城市未覆盖、具体门店确认，转人工。,conditional,P0,FAQ-A005,faq
+HO-FAQ-A007,预订失败了怎么办？,handoff,此类问题原则上进入人工兜底，并记录原因。,true,P0,FAQ-A007,faq
+HO-FAQ-A012,支持分期付款吗？,conditional,具体分期方案需门店确认，转人工。,conditional,P0,FAQ-A012,faq
+HO-FAQ-A013,到店有什么礼品？,conditional,如礼品已发完、用户投诉，转人工。,conditional,P0,FAQ-A013,faq
+HO-FAQ-A015,可以换门店提机吗？,handoff,门店变更需人工处理。,true,P0,FAQ-A015,faq
+HO-FAQ-A016,我所在的城市有门店吗？,handoff,需确认具体城市覆盖情况。,true,P0,FAQ-A016,faq
+HO-FAQ-A018,我想取消预订,handoff,取消预订需人工处理。,true,P0,FAQ-A018,faq
+HO-FAQ-A019,我要投诉/反馈问题,handoff,直接进入人工。,true,P0,FAQ-A019,faq
+HO-FAQ-A020,到店后无法提机,handoff,直接进入人工，需协调门店。,true,P0,FAQ-A020,faq
+HO-FAQ-A021,HOT70 Pro 5G多少钱？,conditional,门店报价不一致、特殊价格、优惠叠加、价格争议时转人工。,conditional,P0,FAQ-A021,faq
+HO-FAQ-A022,订金在哪里付,conditional,用户询问具体门店付款方式、收据、门店无法收款时转人工。,conditional,P0,FAQ-A022,faq
+HO-FAQ-A023,提机时还要付多少钱？,conditional,用户已享受其他优惠、门店金额不一致、付款争议时转人工。,conditional,P0,FAQ-A023,faq
+HO-FAQ-A024,如果只线上填了信息，算预订成功吗？,conditional,用户已提交但门店查不到记录、没收到确认信息、是否能保留名额时转人工。,conditional,P0,FAQ-A024,faq
+HO-FAQ-A025,线上预订后，多久内要去门店付订金？,conditional,用户问是否可延期、门店是否能保留名额、已错过预订期时转人工。,conditional,P0,FAQ-A025,faq
+HO-FAQ-A026,订金线上能不能付？,conditional,用户询问门店支持哪些付款方式、支付失败、要求线上转账时转人工。,conditional,P0,FAQ-A026,faq
+HO-FAQ-A027,可以预订几台？,conditional,多台购买、团购、批量采购、门店特殊处理时转人工。,conditional,P0,FAQ-A027,faq
+HO-FAQ-A028,选了某个颜色，门店能保证有吗？,conditional,用户强烈要求某一颜色、查询具体门店颜色库存、投诉颜色不一致时转人工。,conditional,P0,FAQ-A028,faq
+HO-FAQ-A029,到店具体是什么礼品,conditional,用户问赠品型号、颜色、库存、是否一定有、是否可换时转人工。,conditional,P0,FAQ-A029,faq
+HO-FAQ-A030,Smart Watch 怎么领取？,conditional,用户问激活多久生效、赠品未收到、门店不给赠品、SIM 激活异常时转人工。,conditional,P0,FAQ-A030,faq
+HO-FAQ-A031,为什么要激活才能拿赠品？,conditional,用户对激活规则有异议、SIM 激活失败、赠品资格争议时转人工。,conditional,P0,FAQ-A031,faq
+HO-FAQ-A033,线上抽奖/免单这是什么活动？,conditional,私域侧活动,conditional,P0,FAQ-A033,faq
+HO-FAQ-A034,线上免单活动时间是什么时候？,conditional,私域侧活动,conditional,P0,FAQ-A034,faq
+HO-FAQ-A035,免单是什么意思？是免费送手机吗？,conditional,私域侧活动,conditional,P0,FAQ-A035,faq
+HO-FAQ-A036,一共抽几个名额？,conditional,私域侧活动,conditional,P0,FAQ-A036,faq
+HO-FAQ-A037,怎样才有资格参加抽奖？,conditional,私域侧活动,conditional,P0,FAQ-A037,faq
+HO-FAQ-A038,只加了 WhatsApp 能参加抽奖吗？,conditional,私域侧活动,conditional,P0,FAQ-A038,faq
+HO-FAQ-A039,只预订没提机能参加吗？,conditional,私域侧活动,conditional,P0,FAQ-A039,faq
+HO-FAQ-A040,买别的机型能参加吗？,conditional,私域侧活动,conditional,P0,FAQ-A040,faq
+HO-FAQ-A041,活动期之外买的算吗？,conditional,私域侧活动,conditional,P0,FAQ-A041,faq
+HO-FAQ-A042,发预定订单截图就能抽奖了吗？,conditional,私域侧活动,conditional,P0,FAQ-A042,faq
+HO-FAQ-A043,怎么正式获得抽奖名额？,conditional,私域侧活动,conditional,P0,FAQ-A043,faq
+HO-FAQ-A044,为什么要发露脸照片？不发可以吗？,conditional,私域侧活动,conditional,P0,FAQ-A044,faq
+HO-FAQ-A045,一个人能有几个抽奖名额？,conditional,私域侧活动,conditional,P0,FAQ-A045,faq
+HO-FAQ-A046,怎么预订 HOT70 Pro？,conditional,私域侧活动,conditional,P0,FAQ-A046,faq
+HO-FAQ-A047,预订后多久能提机？,conditional,私域侧活动,conditional,P0,FAQ-A047,faq
+HO-FAQ-A048,订单截图在哪里找？,conditional,私域侧活动,conditional,P0,FAQ-A048,faq
+HO-FAQ-A049,可以预约到店时间吗？,conditional,私域侧活动,conditional,P0,FAQ-A049,faq
+HO-FAQ-A050,到店立减券是什么？怎么用？,conditional,私域侧活动,conditional,P0,FAQ-A050,faq
+HO-FAQ-A051,券码可以转给别人吗？,conditional,私域侧活动,conditional,P0,FAQ-A051,faq
+HO-FAQ-A052,邀请好友有什么好处？,conditional,私域侧活动,conditional,P0,FAQ-A052,faq
+HO-FAQ-A053,什么时候开奖？,conditional,私域侧活动,conditional,P0,FAQ-A053,faq
+HO-FAQ-A054,怎么开奖？公平吗？,conditional,私域侧活动,conditional,P0,FAQ-A054,faq
+HO-FAQ-A055,中奖后怎么领奖？,conditional,私域侧活动,conditional,P0,FAQ-A055,faq
+HO-FAQ-A056,中奖后退货还能拿免单吗？,conditional,私域侧活动,conditional,P0,FAQ-A056,faq
+HO-FAQ-A057,线上免单活动是真的吗？会不会是骗人的？,conditional,私域侧活动,conditional,P0,FAQ-A057,faq
+HO-FAQ-A059,HOT 70 Pro 屏幕多大？分辨率多少？,conditional,用户询问具体尺寸参数、分辨率数值时转人工。,conditional,P0,FAQ-A059,faq
+HO-FAQ-A060,充电功率多大？充满要多久？,conditional,用户询问具体瓦数、充电时长时转人工。,conditional,P0,FAQ-A060,faq
+HO-FAQ-A062,保修期多长？,conditional,用户询问具体保修范围、配件保修、延保时转人工。,conditional,P0,FAQ-A062,faq
+HO-FAQ-A063,售后服务中心在哪里？,handoff,需确认具体城市服务网点覆盖。,true,P0,FAQ-A063,faq
+HO-FAQ-A064,手机出问题怎么办？,conditional,远程无法解决的硬件故障、保修争议时转人工。,conditional,P0,FAQ-A064,faq
+HO-FAQ-A065,门店支持哪些付款方式？,conditional,用户询问特定门店支持的付款方式、支付失败时转人工。,conditional,P0,FAQ-A065,faq
+HO-FAQ-A068,HOT 70 Pro 和其他 Infinix 手机有什么区别？,conditional,用户需要详细参数对比、选购建议时转人工。,conditional,P0,FAQ-A068,faq
+HO-FAQ-A069,预订后能修改手机号吗？,handoff,修改注册信息需人工处理。,true,P0,FAQ-A069,faq
+HO-FAQ-A070,怎么查我的预订状态？,handoff,需人工查询后台预订记录。,true,P0,FAQ-A070,faq
+HO-FAQ-A071,门店营业时间是什么？,conditional,用户询问特定门店营业时间时转人工。,conditional,P0,FAQ-A071,faq

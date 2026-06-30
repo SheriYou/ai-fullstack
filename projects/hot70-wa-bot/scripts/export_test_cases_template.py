@@ -14,8 +14,10 @@ CREATOR = ""
 HEADER_ROW1 = ["默认分组"] + [""] * 19
 HEADER_ROW2 = [
     "ID", "用例名称", "关联用户故事", "所属产品", "用例等级", "用例类型", "用例分类",
-    "步骤", "创建时间", "创建人", "执行人", "执行时间", "执行结果",
-] + [""] * 7
+    "前置条件", "操作步骤", "预期结果",
+    "测试层", "自动化", "来源", "规则编号", "补充说明",
+    "创建时间", "创建人", "执行人", "执行时间", "执行结果",
+]
 
 TYPE_MAP = {
     "smoke": "冒烟测试",
@@ -71,7 +73,8 @@ INTENT_TOPIC = {
 SYSTEM_TITLES = {
     "TC-SMOKE-001": "用户打招呼后，机器人能在10秒内回复",
     "TC-SMOKE-002": "用户询问产品价格时，机器人能正确回复价格信息",
-    "TC-SMOKE-003": "用户说转人工时，成功转接人工且工作台出现新会话",
+    "TC-SMOKE-003-LOCAL": "用户说转人工时，Web 本地坐席分配且机器人暂停",
+    "TC-SMOKE-003-EXT": "工作台外部转人工时，智齿工作台出现会话且含 groupid",
     "TC-SMOKE-003b": "转人工后用户再发消息，机器人不再自动回复",
     "TC-SMOKE-004": "坐席在工作台回复后，用户 WhatsApp 能收到人工消息",
     "TC-SMOKE-005": "会话日志能完整记录从用户消息到机器人/人工回复的全链路",
@@ -159,20 +162,17 @@ def truncate(text, max_len=40):
 
 
 def system_title(r):
+    title = (r.get("title") or "").strip()
+    if title and title != r["id"]:
+        return title
     tid = r["id"]
     if tid in SYSTEM_TITLES:
         return SYSTEM_TITLES[tid]
-    title = r.get("title", "").strip()
-    if title and title != tid:
-        inp = r.get("input", "").strip()
-        if inp and inp not in ("—", "-"):
-            return f"{title}：用户发送「{truncate(inp)}」时行为符合预期"
-        return title
     inp = r.get("input", "").strip()
     mod = MODULE_LABEL.get(r["module"], r["module"])
     if inp and inp not in ("—", "-"):
         return f"{mod}：用户发送「{truncate(inp)}」时行为符合预期"
-    return f"{mod}：{r.get('expected_result', '行为符合预期')}"
+    return f"{mod}：{truncate(r.get('expected_result', '行为符合预期'), 60)}"
 
 
 def faq_title(r):
@@ -181,23 +181,29 @@ def faq_title(r):
     action = r.get("expected_action", "")
     ho = r.get("should_handoff", "")
     src = r.get("source", "faq")
+    facts = (r.get("expected_facts") or "").strip()
     topic = INTENT_TOPIC.get(intent, intent or "FAQ")
 
     q = truncate(inp, 36)
+    fact_hint = ""
+    if facts and action not in ("handoff", "none") and ho != "true":
+        first_fact = facts.split("|")[0].strip()
+        if first_fact:
+            fact_hint = f"，回复含「{truncate(first_fact, 20)}」"
 
     if src == "faq_paraphrase":
         prefix = f"相似问法识别-{topic}"
         if action == "handoff" or ho == "true":
-            return f"{prefix}：用户发「{q}」时转接人工"
-        return f"{prefix}：用户发「{q}」时能正确识别并回复"
+            return f"{prefix}：用户发「{q}」时应转接人工"
+        return f"{prefix}：用户发「{q}」时应正确识别并回复{fact_hint}"
 
     if action == "handoff" or ho == "true":
-        return f"{topic}：用户问「{q}」时转接人工客服"
+        return f"{topic}：用户问「{q}」时应转接人工客服"
     if action == "none":
-        return f"{topic}：用户问「{q}」时机器人不自动回复"
+        return f"{topic}：用户问「{q}」时机器人不应自动回复"
     if ho == "conditional":
-        return f"{topic}：用户问「{q}」时机器人正确回复（必要时可转人工）"
-    return f"{topic}：用户问「{q}」时机器人正确回复"
+        return f"{topic}：用户问「{q}」时应正确回复{fact_hint or ''}（必要时可转人工）"
+    return f"{topic}：用户问「{q}」时应正确回复{fact_hint}"
 
 
 def adversarial_title(r):
@@ -205,15 +211,16 @@ def adversarial_title(r):
     reason = r.get("reason", "")
     inp = truncate(r.get("input", ""), 28)
     action = r.get("expected_action", "")
+    hint = r.get("expected_prompt_hint", "")
 
     if action == "none":
-        return f"{cat}：{reason or '转人工后'}机器人不再自动回复"
+        return f"{cat}：验证{reason or '转人工后'}机器人不再自动回复（Q02）"
     if action == "handoff":
-        return f"{cat}：用户发「{inp}」时说明原因并转接人工"
-    hint = r.get("expected_prompt_hint", "")
+        hint_part = f"，提示含「{hint.split('|')[0]}」" if hint else ""
+        return f"{cat}：用户发「{inp}」时应说明原因并转接人工{hint_part}"
     if hint:
-        return f"{cat}：用户发「{inp}」时回复含友好提示（{hint.split('|')[0]}）"
-    return f"{cat}：{reason or '异常输入'}时有合理提示"
+        return f"{cat}：用户发「{inp}」时应友好回复且提示含「{hint.split('|')[0]}」"
+    return f"{cat}：{reason or '异常输入'}时系统有合理提示且不崩溃"
 
 
 def load_adversarial_cases():
@@ -234,23 +241,40 @@ def load_adversarial_cases():
             name = adversarial_title(r)
 
             if action == "none":
-                expected = "机器人不自动回复（Q02）"
+                expected = "1. 机器人不自动回复（Q02）\n2. 会话由人工/智齿链路承接"
             elif action == "handoff":
-                expected = "触发转人工；回复说明原因且不编造"
+                expected = "1. 触发转人工；说明原因且不编造事实"
                 if hint:
-                    expected += f"；用户可见提示含：{hint.replace('|', ' 或 ')}"
+                    expected += f"\n2. 用户可见提示含关键词：{hint.replace('|', ' 或 ')}"
             else:
-                expected = "机器人友好回复，不崩溃"
+                expected = "1. 机器人友好回复，服务不崩溃"
                 if hint:
-                    expected += f"；用户可见提示含：{hint.replace('|', ' 或 ')}"
+                    expected += f"\n2. 用户可见提示含关键词：{hint.replace('|', ' 或 ')}"
 
-            steps = format_steps(
+            operation = format_operation_steps(
                 "G1 环境就绪；参见 spec/exception-handling.md",
                 inp,
                 expected,
-                f"规则：{r.get('rule_id','')}；原因：{reason}",
+                f"1. 用户发送或模拟：{inp if inp and not inp.startswith('(') else reason}\n2. 查看 WhatsApp/工作台回复与日志",
             )
-            rows.append(row(cid, name, USER_STORY, pri, "异常测试", cat_label, steps))
+            rows.append(
+                case_row(
+                    cid,
+                    name,
+                    USER_STORY,
+                    pri,
+                    "异常测试",
+                    cat_label,
+                    "G1 环境就绪；参见 spec/exception-handling.md",
+                    operation,
+                    expected,
+                    layer="L2/L3",
+                    automation="agent",
+                    source="corpus-adversarial",
+                    rule_id=r.get("rule_id", ""),
+                    note=reason,
+                )
+            )
     return rows
 
 
@@ -267,26 +291,54 @@ INTENT_CAT = {
 }
 
 
-def format_steps(pre, inp, expected, extra=""):
+def format_operation_steps(pre, inp, expected, steps_text=""):
+    """仅生成操作步骤文本（不含前置、预期、补充）。"""
     skip = {"—", "-", ""}
-    parts = []
-    if pre and pre not in skip:
-        parts.append(f"前置条件：{pre}")
+    if steps_text and steps_text.strip():
+        return steps_text.strip()
     if inp and inp not in skip:
-        parts.append(f"1. 用户 WhatsApp 发送：{inp}")
-    else:
-        parts.append("1. 按用例场景执行操作")
-    parts.append(f"2. 预期结果：{expected}")
-    if extra:
-        parts.append(f"3. 补充：{extra}")
-    return "\n".join(parts)
+        return f"1. 用户 WhatsApp 发送：{inp}"
+    return "1. 按用例场景执行操作"
 
 
-def row(case_id, name, story, level, ctype, category, steps):
+def case_row(
+    case_id,
+    name,
+    story,
+    level,
+    ctype,
+    category,
+    preconditions,
+    operation_steps,
+    expected_result,
+    layer="",
+    automation="",
+    source="",
+    rule_id="",
+    note="",
+):
     return [
-        case_id, name, story, PRODUCT, level, ctype, category, steps,
-        "", CREATOR, "", "", "",
-    ] + [""] * 7
+        case_id,
+        name,
+        story,
+        PRODUCT,
+        level,
+        ctype,
+        category,
+        preconditions,
+        operation_steps,
+        expected_result,
+        layer,
+        automation,
+        source,
+        rule_id,
+        note,
+        "",
+        CREATOR,
+        "",
+        "",
+        "",
+    ]
 
 
 def load_system_cases():
@@ -297,13 +349,29 @@ def load_system_cases():
             cat = MODULE_LABEL.get(r["module"], r["module"])
             ctype = TYPE_MAP.get(r["type"], "功能测试")
             name = system_title(r)
-            steps = format_steps(
-                r["preconditions"],
-                r["input"],
-                r["expected_result"],
-                f"测试层：{r['layer']}；自动化：{r['automation']}；来源：{r['source']}",
+            rows.append(
+                case_row(
+                    r["id"],
+                    name,
+                    USER_STORY,
+                    r["priority"],
+                    ctype,
+                    cat,
+                    r.get("preconditions", ""),
+                    format_operation_steps(
+                        r.get("preconditions", ""),
+                        r.get("input", ""),
+                        r.get("expected_result", ""),
+                        r.get("steps", ""),
+                    ),
+                    r.get("expected_result", ""),
+                    layer=r.get("layer", ""),
+                    automation=r.get("automation", ""),
+                    source=r.get("source", ""),
+                    rule_id="",
+                    note=r.get("corpus_ref", ""),
+                )
             )
-            rows.append(row(r["id"], name, USER_STORY, r["priority"], ctype, cat, steps))
     return rows
 
 
@@ -325,37 +393,72 @@ def load_faq_cases():
             name = faq_title(r)
 
             if action == "handoff" or ho == "true":
-                expected = "触发转人工；handoff_flag=true"
+                expected = "1. 触发转人工（handoff=true）\n2. 不编造 FAQ 外事实\n3. 用户可见转人工或说明类提示"
             elif action == "none":
-                expected = "机器人不自动回复"
+                expected = "1. 机器人不自动回复\n2. 符合 Q02 或静默场景"
             else:
-                expected = f"意图={intent}；回复包含关键事实：{facts}" if facts else f"意图={intent}；正确回复"
+                if facts:
+                    facts_short = facts.replace("|", "、")[:120]
+                    expected = (
+                        f"1. 意图识别为：{intent}\n"
+                        f"2. 回复包含关键事实：{facts_short}\n"
+                        f"3. 不编造 FAQ 未覆盖内容"
+                    )
+                else:
+                    expected = f"1. 意图识别为：{intent}\n2. 回复与 FAQ 口径一致"
 
             if ho == "conditional":
-                expected += "；视情况可能转人工"
+                expected += "\n4. 若用户追问特殊/动态信息，应视情况转人工"
 
-            steps = format_steps(
-                "G1 环境就绪；FAQ 状态建议已确认",
+            operation = format_operation_steps(
+                "G1 环境就绪；FAQ 状态建议已确认；RAGFlow 可用",
                 inp,
                 expected,
-                f"规则：{r.get('rule_id','')}；来源：{src}",
+                f"1. 用户 WhatsApp 发送：{inp}\n2. 查看机器人回复是否含 expected_facts 关键词\n3. 查 agent/session 的 task_type 与 handoff 状态",
             )
-            rows.append(row(cid, name, USER_STORY, pri, TYPE_MAP.get(src, "功能测试"), cat, steps))
+            rows.append(
+                case_row(
+                    cid,
+                    name,
+                    USER_STORY,
+                    pri,
+                    TYPE_MAP.get(src, "功能测试"),
+                    cat,
+                    "G1 环境就绪；FAQ 状态建议已确认；RAGFlow 可用",
+                    operation,
+                    expected,
+                    layer="L2",
+                    automation="agent",
+                    source=src,
+                    rule_id=r.get("rule_id", ""),
+                    note=f"意图：{intent}" if intent else "",
+                )
+            )
     return rows
 
 
 def main():
-    out = PRD / "Hot70_all_test_cases.csv"
+    out = DATA / "Hot70_all_test_cases.csv"
     all_rows = load_system_cases() + load_adversarial_cases() + load_faq_cases()
 
-    with out.open("w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f)
-        w.writerow(HEADER_ROW1)
-        w.writerow(HEADER_ROW2)
-        for r in all_rows:
-            w.writerow(r)
+    def write_csv(path: Path):
+        with path.open("w", encoding="utf-8-sig", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(HEADER_ROW1)
+            w.writerow(HEADER_ROW2)
+            for r in all_rows:
+                w.writerow(r)
 
-    print(f"OK {out} total={len(all_rows)} (system + adversarial + faq corpus)")
+    try:
+        write_csv(out)
+        print(f"OK {out} total={len(all_rows)} (system + adversarial + faq corpus)")
+    except PermissionError:
+        fallback = PRD / "Hot70_all_test_cases.csv"
+        write_csv(fallback)
+        print(
+            f"WARN: {out} locked (close in editor); wrote {fallback} total={len(all_rows)}",
+            file=__import__("sys").stderr,
+        )
 
 
 if __name__ == "__main__":

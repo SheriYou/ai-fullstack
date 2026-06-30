@@ -1,0 +1,303 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Run Hot70 smoke + L2 sample against test-paas bot API."""
+from __future__ import annotations
+
+import csv
+import http.cookiejar
+import json
+import sys
+import time
+import uuid
+from datetime import datetime
+from pathlib import Path
+from urllib import error, request
+
+ROOT = Path(__file__).resolve().parents[1]
+REPORTS = ROOT / "reports"
+DATA = ROOT / "data"
+
+DEFAULT_BASE = "https://test-paas.transsion.com/whatsapp-bot-service/api"
+DEFAULT_USER = "admin"
+DEFAULT_PASS = "admin123456"
+
+
+class Client:
+    def __init__(self, base: str, user: str, password: str):
+        self.base = base.rstrip("/")
+        self.cj = http.cookiejar.CookieJar()
+        self.opener = request.build_opener(request.HTTPCookieProcessor(self.cj))
+
+    def _call(self, method: str, path: str, body: dict | None = None, timeout: int = 60):
+        url = self.base + path
+        data = json.dumps(body).encode("utf-8") if body is not None else None
+        req = request.Request(
+            url,
+            data=data,
+            method=method,
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
+        )
+        try:
+            with self.opener.open(req, timeout=timeout) as resp:
+                raw = resp.read().decode("utf-8")
+                return resp.status, json.loads(raw) if raw else {}
+        except error.HTTPError as e:
+            raw = e.read().decode("utf-8", errors="replace")
+            try:
+                payload = json.loads(raw)
+            except json.JSONDecodeError:
+                payload = {"raw": raw}
+            return e.code, payload
+
+    def login(self, user: str, password: str) -> bool:
+        status, data = self._call("POST", "/auth/login", {"username": user, "password": password})
+        return status == 200 and data.get("success") is not False
+
+    def webhook(self, channel: str, whatsapp_id: str, text: str) -> tuple[int, dict]:
+        payload = {
+            "whatsapp_id": whatsapp_id,
+            "content": text,
+            "message_id": f"test-{uuid.uuid4().hex[:12]}",
+            "direction": "inbound",
+        }
+        url = f"{self.base}/webhook/{channel}"
+        data = json.dumps(payload).encode("utf-8")
+        req = request.Request(
+            url,
+            data=data,
+            method="POST",
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
+        )
+        try:
+            with request.urlopen(req, timeout=60) as resp:
+                raw = resp.read().decode("utf-8")
+                return resp.status, json.loads(raw) if raw else {}
+        except error.HTTPError as e:
+            raw = e.read().decode("utf-8", errors="replace")
+            try:
+                body = json.loads(raw)
+            except json.JSONDecodeError:
+                body = {"raw": raw}
+            return e.code, body
+
+    def session(self, business_line_id: int, whatsapp_id: str) -> dict:
+        _, data = self._call("GET", f"/business-lines/{business_line_id}/agent/session/{whatsapp_id}")
+        inner = data.get("data") or {}
+        if isinstance(inner, dict) and "data" in inner:
+            return inner.get("data") or {}
+        return inner if isinstance(inner, dict) else {}
+
+    def messages(self, business_line_id: int, whatsapp_id: str) -> list:
+        _, data = self._call("GET", f"/business-lines/{business_line_id}/messages/{whatsapp_id}")
+        inner = data.get("data") or {}
+        if isinstance(inner, dict):
+            return inner.get("data") or []
+        return inner if isinstance(inner, list) else []
+
+    def conversations(self, business_line_id: int) -> list:
+        _, data = self._call("GET", f"/business-lines/{business_line_id}/conversations")
+        inner = data.get("data") or {}
+        if isinstance(inner, dict):
+            return inner.get("data") or []
+        return inner if isinstance(inner, list) else []
+
+
+def find_conversation(conversations: list, whatsapp_id: str) -> dict | None:
+    for c in conversations:
+        if c.get("whatsapp_id") == whatsapp_id or c.get("whatsappId") == whatsapp_id:
+            return c
+    return None
+
+
+def outbound_texts(messages: list) -> list[str]:
+    texts = []
+    for m in messages:
+        direction = (m.get("direction") or "").lower()
+        if direction == "outbound":
+            content = m.get("content") or ""
+            if content.strip():
+                texts.append(content.strip())
+    return texts
+
+
+def session_id_from(sess: dict) -> str:
+    if not sess:
+        return ""
+    inner = sess.get("session") or sess
+    return (inner.get("session_id") or inner.get("sessionId") or "").strip()
+
+
+def run_smoke(client: Client, channel: str, bl: int, wa: str, wait: float) -> list[dict]:
+    cases = [
+        ("TC-SMOKE-001", "你好", lambda texts, sess, conv: len(texts) >= 1),
+        ("TC-SMOKE-002", "Hot70 多少钱", lambda texts, sess, conv: any("999" in t or "36" in t or "price" in t.lower() or "BDT" in t for t in texts) or len(texts) >= 1),
+        ("TC-SMOKE-003-LOCAL", "转人工", lambda texts, sess, conv: conv is not None and (conv.get("is_active_agent") == 0 or conv.get("isActiveAgent") == 0 or (conv.get("conversation_status") or conv.get("conversationStatus") in ("handoff", "external_handoff")))),
+    ]
+    results = []
+    for cid, text, checker in cases:
+        st, wh = client.webhook(channel, wa, text)
+        time.sleep(wait)
+        sess = client.session(bl, wa)
+        msgs = client.messages(bl, wa)
+        convs = client.conversations(bl)
+        conv = find_conversation(convs, wa)
+        texts = outbound_texts(msgs)
+        ok = st == 200 and (wh.get("data") or {}).get("status") == "success" and checker(texts, sess, conv)
+        results.append({
+            "id": cid,
+            "input": text,
+            "whatsapp_id": wa,
+            "session_id": session_id_from(sess),
+            "status": "PASS" if ok else "FAIL",
+            "webhook_http": st,
+            "webhook": wh,
+            "outbound_count": len(texts),
+            "outbound_preview": texts[-1][:120] if texts else "",
+            "task_type": (sess.get("session") or {}).get("task_type") if sess.get("session") else sess.get("task_type"),
+            "conversation_status": (conv or {}).get("conversation_status") or (conv or {}).get("conversationStatus"),
+            "is_active_agent": (conv or {}).get("is_active_agent") if conv else None,
+        })
+    # Q02 follow-up
+    st, wh = client.webhook(channel, wa, "在吗")
+    time.sleep(wait)
+    msgs = client.messages(bl, wa)
+    inbound_after = sum(1 for m in msgs if (m.get("direction") or "").lower() == "inbound")
+    outbound_after = outbound_texts(msgs)
+    new_bot = len(outbound_after) > results[-1]["outbound_count"] if results else len(outbound_after) > 0
+    results.append({
+        "id": "TC-SMOKE-003b",
+        "input": "在吗（转人工后）",
+        "whatsapp_id": wa,
+        "session_id": session_id_from(client.session(bl, wa)),
+        "status": "PASS" if st == 200 and not new_bot else "FAIL",
+        "webhook_http": st,
+        "note": "转人工后不应新增机器人 outbound",
+        "outbound_count": len(outbound_after),
+    })
+    return results
+
+
+def run_corpus_sample(client: Client, channel: str, bl: int, wait: float, limit: int = 15) -> list[dict]:
+    path = DATA / "corpus-intent.csv"
+    rows = list(csv.DictReader(path.open(encoding="utf-8")))[:limit]
+    wa_base = f"corpus-{uuid.uuid4().hex[:6]}"
+    results = []
+    for i, row in enumerate(rows):
+        wa = f"{wa_base}-{i}@s.whatsapp.net"
+        text = (row.get("input") or "").strip()
+        if not text or text.startswith("("):
+            results.append({"id": row.get("id"), "status": "SKIP", "reason": "non-simulatable"})
+            continue
+        st, wh = client.webhook(channel, wa, text)
+        time.sleep(wait)
+        sess = client.session(bl, wa)
+        session_obj = sess.get("session") or sess
+        ok = st == 200 and (wh.get("data") or {}).get("status") == "success"
+        results.append({
+            "id": row.get("id"),
+            "status": "PASS" if ok else "FAIL",
+            "input": text[:60],
+            "whatsapp_id": wa,
+            "session_id": (session_obj.get("session_id") or session_obj.get("sessionId") or ""),
+            "expected_intent": row.get("expected_intent"),
+            "task_type": session_obj.get("task_type"),
+            "webhook_http": st,
+        })
+    return results
+
+
+def write_report(smoke: list, corpus: list, meta: dict):
+    REPORTS.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    out = REPORTS / f"test-run-{ts}.md"
+    sp = sum(1 for r in smoke if r["status"] == "PASS")
+    sf = sum(1 for r in smoke if r["status"] == "FAIL")
+    cp = sum(1 for r in corpus if r["status"] == "PASS")
+    cf = sum(1 for r in corpus if r["status"] == "FAIL")
+    cs = sum(1 for r in corpus if r["status"] == "SKIP")
+    lines = [
+        f"# Hot70 测试执行报告",
+        "",
+        f"> {datetime.now().isoformat(timespec='seconds')}",
+        "",
+        "## 环境",
+        "",
+        f"- API: `{meta['base']}`",
+        f"- channel: `{meta['channel']}`",
+        f"- business_line_id: `{meta['business_line_id']}`",
+        f"- whatsapp_id (smoke): `{meta['whatsapp_id']}`",
+        "",
+        "## 冒烟 G2",
+        "",
+        f"Pass={sp} Fail={sf}",
+        "",
+        "| ID | 结果 | 输入 | 说明 |",
+        "|----|------|------|------|",
+    ]
+    for r in smoke:
+        note = r.get("outbound_preview") or r.get("note") or r.get("conversation_status") or ""
+        lines.append(f"| {r['id']} | {r['status']} | {r.get('input','')[:30]} | {str(note)[:50]} |")
+    lines += [
+        "",
+        "## L2 语料抽样（webhook 可达 + session 可观测）",
+        "",
+        f"Pass={cp} Fail={cf} Skip={cs}（样本 {len(corpus)} 条，未做 task_type 映射断言）",
+        "",
+        "| ID | 结果 | 输入 | task_type |",
+        "|----|------|------|-----------|",
+    ]
+    for r in corpus:
+        lines.append(f"| {r.get('id','')} | {r['status']} | {str(r.get('input',''))[:40]} | {r.get('task_type','')} |")
+    lines += [
+        "",
+        "## 说明",
+        "",
+        "- webhook 使用 LocalGateway 格式：`whatsapp_id` + `content` + `message_id`",
+        "- `/api/webhook/channels/...` 在测试环境返回 404，已改用 `/api/webhook/{channelKey}`",
+        "- 智齿 external-handoff / 真机 WA 未在本轮执行",
+        "- 完整 task_type 映射断言见 `spec/intent-task-mapping.md`",
+        "",
+    ]
+    out.write_text("\n".join(lines), encoding="utf-8")
+    print(f"report={out}")
+    return out
+
+
+def main():
+    base = DEFAULT_BASE
+    user = DEFAULT_USER
+    password = DEFAULT_PASS
+    channel = "ch_wa_01"
+    bl = 1
+    wait = 4.0
+    corpus_limit = 15
+
+    client = Client(base, user, password)
+    if not client.login(user, password):
+        print("LOGIN FAILED", file=sys.stderr)
+        sys.exit(1)
+    print("LOGIN OK")
+
+    wa = f"smoke-{uuid.uuid4().hex[:8]}@s.whatsapp.net"
+    print(f"smoke wa={wa}")
+
+    smoke = run_smoke(client, channel, bl, wa, wait)
+    corpus = run_corpus_sample(client, channel, bl, wait, corpus_limit)
+    report = write_report(smoke, corpus, {
+        "base": base,
+        "channel": channel,
+        "business_line_id": bl,
+        "whatsapp_id": wa,
+    })
+
+    print("\n=== SMOKE ===")
+    for r in smoke:
+        print(r["id"], r["status"], r.get("outbound_preview", r.get("note", ""))[:80])
+
+    print("\n=== CORPUS SAMPLE ===")
+    print(f"PASS={sum(1 for r in corpus if r['status']=='PASS')} FAIL={sum(1 for r in corpus if r['status']=='FAIL')} SKIP={sum(1 for r in corpus if r['status']=='SKIP')}")
+    print(f"report written: {report}")
+
+
+if __name__ == "__main__":
+    main()

@@ -10,6 +10,10 @@ rows = src["workbooks"]["Hot70_Script"]["data"]["FAQ知识库"]["rows"]
 
 items = []
 auto = 0
+summary_path = ROOT / "data" / "faq-export" / "build-summary.json"
+intent_total = 0
+if summary_path.exists():
+    intent_total = json.loads(summary_path.read_text(encoding="utf-8")).get("intent", 0)
 for r in rows:
     q = str(r.get("用户问题（用户实际使用语种）", "")).strip()
     cat = str(r.get("分类", "")).strip()
@@ -40,7 +44,7 @@ for it in items:
 lines = [
     "# Hot70 语料 Review 清单",
     "",
-    f"> 共 **{len(items)}** 条 FAQ 主问法（不含 paraphrase 扩展至 271 条）",
+    f"> 共 **{len(items)}** 条 FAQ 主问法（含 paraphrase 扩展共 **{intent_total or '—'}** 条意图语料）",
     "> 请运营/产品确认后，在 Excel 将「状态」改为 **已确认**，再重新 build 语料",
     "",
     "## Review 勾选",

@@ -53,3 +53,22 @@ projects/<名>/
 ├── scripts/            # L1/L2 脚本
 └── reports/            # 报告输出
 ```
+
+## 6. 产出物定期清理
+
+过期测试产出物由 `scripts/daily_cleanup.py` 每日清理一次（默认保留 **7** 天，至少保留最近 **1** 轮 run）。
+
+| 命令 | 说明 |
+|------|------|
+| `python scripts/daily_cleanup.py` | 执行清理（同一天内重复调用会自动跳过） |
+| `python scripts/daily_cleanup.py --dry-run` | 预览将删除的文件 |
+| `python scripts/daily_cleanup.py --force` | 忽略「今日已执行」限制 |
+| `python scripts/daily_cleanup.py --retention-days 14` | 自定义保留天数 |
+
+**Windows 计划任务**（每天 03:00）：
+
+```powershell
+.\scripts\schedule_daily_cleanup.ps1
+```
+
+清理范围：`projects/*/reports/runs/{run_id}/` 及根目录同 run 的 dated 副本；不删 `README.md`、`e2e-log.csv`、`*-latest.*` 等静态/指针文件。日志见 `.cleanup/logs/`。

@@ -11,8 +11,10 @@ FAQ_JSON = ROOT / "data" / "faq-export" / "sources.json"
 
 CAT_INTENT = {
     "HOT70 商品信息": "产品信息",
+    "HOT 70 Pro 商品信息": "产品信息",
     "活动规则": "活动规则",
     "活动权益": "活动权益",
+    "私域侧活动": "活动权益",
     "提机规则": "提机相关",
     "门店信息": "门店相关",
     "官方身份说明": "官方身份",
@@ -21,13 +23,38 @@ CAT_INTENT = {
 
 CAT_CODE = {
     "HOT70 商品信息": "PROD",
+    "HOT 70 Pro 商品信息": "PROD",
     "活动规则": "ACT",
     "活动权益": "BEN",
+    "私域侧活动": "BEN",
     "提机规则": "PICK",
     "门店信息": "STORE",
     "官方身份说明": "OFF",
     "人工兜底规则": "HANDOFF",
 }
+
+
+def resolve_category(cat: str) -> tuple[str, str]:
+    cat = str(cat).strip()
+    if cat in CAT_INTENT:
+        return CAT_INTENT[cat], CAT_CODE[cat]
+    if "商品" in cat:
+        return "产品信息", "PROD"
+    if "私域" in cat or "免单" in cat or "抽奖" in cat:
+        return "活动权益", "BEN"
+    if "权益" in cat or "福利" in cat or "券" in cat:
+        return "活动权益", "BEN"
+    if "活动" in cat or "预订" in cat or "预购" in cat:
+        return "活动规则", "ACT"
+    if "提机" in cat or "取货" in cat or "提货" in cat:
+        return "提机相关", "PICK"
+    if "门店" in cat:
+        return "门店相关", "STORE"
+    if "官方" in cat or "正品" in cat:
+        return "官方身份", "OFF"
+    if "人工" in cat or "兜底" in cat or "投诉" in cat:
+        return "人工兜底", "HANDOFF"
+    return "无法覆盖", "OTHER"
 
 FAQ_Q_COL = "用户问题（用户实际使用语种）"
 
@@ -146,8 +173,7 @@ def build():
         fid = row["_fid"]
         cat = row["分类"]
         q = str(row[FAQ_Q_COL]).strip()
-        intent = CAT_INTENT.get(cat, "无法覆盖")
-        code = CAT_CODE.get(cat, "OTHER")
+        intent, code = resolve_category(cat)
         trans = str(row.get("回复中文翻译", "") or row.get("业务反馈", ""))
         facts = keywords_from_translation(trans)
         ho = parse_handoff(row.get("是否需要转人工", ""))
