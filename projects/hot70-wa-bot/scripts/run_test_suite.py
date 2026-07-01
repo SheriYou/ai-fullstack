@@ -128,53 +128,23 @@ def session_id_from(sess: dict) -> str:
 
 
 def run_smoke(client: Client, channel: str, bl: int, wa: str, wait: float) -> list[dict]:
-    cases = [
-        ("TC-SMOKE-001", "你好", lambda texts, sess, conv: len(texts) >= 1),
-        ("TC-SMOKE-002", "Hot70 多少钱", lambda texts, sess, conv: any("999" in t or "36" in t or "price" in t.lower() or "BDT" in t for t in texts) or len(texts) >= 1),
-        ("TC-SMOKE-003-LOCAL", "转人工", lambda texts, sess, conv: conv is not None and (conv.get("is_active_agent") == 0 or conv.get("isActiveAgent") == 0 or (conv.get("conversation_status") or conv.get("conversationStatus") in ("handoff", "external_handoff")))),
-    ]
-    results = []
-    for cid, text, checker in cases:
-        st, wh = client.webhook(channel, wa, text)
-        time.sleep(wait)
-        sess = client.session(bl, wa)
-        msgs = client.messages(bl, wa)
-        convs = client.conversations(bl)
-        conv = find_conversation(convs, wa)
-        texts = outbound_texts(msgs)
-        ok = st == 200 and (wh.get("data") or {}).get("status") == "success" and checker(texts, sess, conv)
-        results.append({
-            "id": cid,
-            "input": text,
-            "whatsapp_id": wa,
-            "session_id": session_id_from(sess),
-            "status": "PASS" if ok else "FAIL",
-            "webhook_http": st,
-            "webhook": wh,
-            "outbound_count": len(texts),
-            "outbound_preview": texts[-1][:120] if texts else "",
-            "task_type": (sess.get("session") or {}).get("task_type") if sess.get("session") else sess.get("task_type"),
-            "conversation_status": (conv or {}).get("conversation_status") or (conv or {}).get("conversationStatus"),
-            "is_active_agent": (conv or {}).get("is_active_agent") if conv else None,
+    """Formal 冒烟用例（TC-SMOKE-*，verify_profile 驱动）。"""
+    from test_case_runner import run_smoke_formal_cases
+
+    formal = run_smoke_formal_cases(client, channel, bl, max(wait, 4.0))
+    out = []
+    for r in formal:
+        out.append({
+            "id": r["case_id"],
+            "input": "",
+            "whatsapp_id": r.get("whatsapp_id", ""),
+            "session_id": r.get("session_id", ""),
+            "status": "PASS" if r.get("business_result") == "PASS" else "FAIL",
+            "outbound_preview": r.get("outbound_preview", ""),
+            "note": r.get("notes", ""),
+            "notes": r.get("notes", ""),
         })
-    # Q02 follow-up
-    st, wh = client.webhook(channel, wa, "在吗")
-    time.sleep(wait)
-    msgs = client.messages(bl, wa)
-    inbound_after = sum(1 for m in msgs if (m.get("direction") or "").lower() == "inbound")
-    outbound_after = outbound_texts(msgs)
-    new_bot = len(outbound_after) > results[-1]["outbound_count"] if results else len(outbound_after) > 0
-    results.append({
-        "id": "TC-SMOKE-003b",
-        "input": "在吗（转人工后）",
-        "whatsapp_id": wa,
-        "session_id": session_id_from(client.session(bl, wa)),
-        "status": "PASS" if st == 200 and not new_bot else "FAIL",
-        "webhook_http": st,
-        "note": "转人工后不应新增机器人 outbound",
-        "outbound_count": len(outbound_after),
-    })
-    return results
+    return out
 
 
 def run_corpus_sample(client: Client, channel: str, bl: int, wait: float, limit: int = 15) -> list[dict]:

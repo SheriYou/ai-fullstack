@@ -17,10 +17,11 @@ description: 跑 L1 接口脚本与 L2 离线语料批量评测，输出通过�
 
 ## L2 流程（Hot70）
 1. 配置 `config.env`（见 `config.env.example`）
-2. `python scripts/run_l2_eval.py --corpus intent --limit 100`
-3. POST webhook 注入语料 → GET `agent/session` 取 task_type
-4. 按 `intent-task-mapping.md` 判定 Pass/Fail（非 PRD 七类字面）
-5. Fail 样例 100% 人工复核
+2. **推荐** `python scripts/run_full_test.py`（G2 冒烟 + 全量 L2 + 报告归档）
+3. POST webhook 注入语料 **用户问句**（`input` 列）→ 轮询 `Conversation` + `messages`
+4. **转人工**：断言 `handoffTarget=LOCAL` + `isActiveAgent=0`（见 `scripts/case_executor.py`），**不能**仅用 outbound 英文兜底判定 Pass
+5. **冒烟**：001/002 独立会话；003-LOCAL 后再跑 003b（同会话）
+6. Fail 样例人工复核 + `fail_class`
 
 ## 约束
 - G1 环境 OK；建议 G2 冒烟 Pass 后再跑指标

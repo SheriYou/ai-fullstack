@@ -2,7 +2,7 @@
 
 > 共 **82** 条结构化用例
 
-字段说明：`title` 含验证点；`steps` / `expected_result` 可直接给测试人员执行。
+字段说明：`title` 含验证点；`steps` / `expected_result` 可直接给测试人员执行；`verify_profile` 供脚本逐条断言。
 
 ---
 
@@ -12,6 +12,7 @@
 
 - **前置**：功能测试完成；≥50 样本
 - **输入**：—
+- **verify_profile**：`exec:metrics|checks:metrics_aggregate`
 - **步骤**：
   1. 统计 inbound 成功接入与 outbound/人工送达
   2. 计算成功率
@@ -23,6 +24,7 @@
 
 - **前置**：L2/L3 样本 ≥50
 - **输入**：—
+- **verify_profile**：`exec:metrics|checks:metrics_aggregate`
 - **步骤**：
   1. 按 corpus 关键事实匹配统计 Pass
   2. Fail 100% 人工复核
@@ -34,6 +36,7 @@
 
 - **前置**：corpus-handoff ≥50
 - **输入**：—
+- **verify_profile**：`exec:metrics|checks:metrics_aggregate`
 - **步骤**：
   1. 对比应转/不应转样本
   2. 统计准确率
@@ -45,6 +48,7 @@
 
 - **前置**：L3 ≥20 次
 - **输入**：—
+- **verify_profile**：`exec:metrics|manual:人工送达率L3`
 - **步骤**：
   1. 记录坐席发送与用户收到
   2. 计算送达率
@@ -56,6 +60,7 @@
 
 - **前置**：≥30 样本
 - **输入**：—
+- **verify_profile**：`exec:metrics|checks:metrics_aggregate`
 - **步骤**：
   1. 统计发消息到 outbound 耗时
   2. 求平均
@@ -67,6 +72,7 @@
 
 - **前置**：全量未命中样本
 - **输入**：—
+- **verify_profile**：`exec:metrics|manual:未命中追踪汇总`
 - **步骤**：
   1. 汇总未命中/转人工日志
   2. 检查是否均可检索
@@ -80,6 +86,7 @@
 
 - **前置**：G1 环境已通过；WhatsApp 测试号或 webhook 探针可用；机器人 Agent 模式已开启
 - **输入**：你好
+- **verify_profile**：`exec:webhook|messages:你好|checks:webhook_ok,inbound_ok,outbound≤10s,not_handoff_tpl,bot_active,task_type`
 - **步骤**：
   1. 用户向 Hot70 测试号发送：你好
   2. 记录发送时间
@@ -95,6 +102,7 @@
 
 - **前置**：G1 已通过；RAGFlow/知识库已配置且可用
 - **输入**：Hot70 多少钱
+- **verify_profile**：`exec:webhook|messages:Hot70 多少钱|checks:webhook_ok,outbound≤10s,price_keywords,not_handoff_tpl,rag_tool_ok`
 - **步骤**：
   1. 用户发送：Hot70 多少钱（或 Hot70 Pro 5G 多少钱）
   2. 查看机器人回复内容
@@ -110,6 +118,7 @@
 
 - **前置**：G1 已通过；至少 1 名 Web 坐席 online 且可自动分配
 - **输入**：转人工
+- **verify_profile**：`exec:webhook|messages:转人工|checks:webhook_ok,local_handoff,handoff_assigned,conv_listed`
 - **步骤**：
   1. 用户发送：转人工
   2. 查看 Web 工作台会话列表/分配结果
@@ -126,6 +135,7 @@
 
 - **前置**：智齿渠道已配置；externalHandoffEnabled=true；Hot70 技能组 groupid 已记录
 - **输入**：external-handoff（工作台操作）
+- **verify_profile**：`exec:defer_ext|manual:智齿工作台,groupid,external_handoff状态`
 - **步骤**：
   1. 先完成一轮机器人对话（可选）
   2. 在 Web 工作台对该用户执行「外部转人工」
@@ -141,6 +151,7 @@
 
 - **前置**：已完成 TC-SMOKE-003-LOCAL 或 003-EXT，会话处于人工/转人工状态
 - **输入**：在吗 / 还有人吗
+- **verify_profile**：`exec:handoff_then_silence|messages:在吗;还有人吗|checks:no_bot_outbound`
 - **步骤**：
   1. 在转人工状态下，用户连续发送：在吗、还有人吗
   2. 观察 WhatsApp 是否收到新的机器人 outbound
@@ -155,6 +166,7 @@
 
 - **前置**：用户已转人工；坐席已接单或可在工作台发消息
 - **输入**：（坐席）您好，我是 Hot70 客服
+- **verify_profile**：`exec:use_handoff_session|manual:sendManual,WA送达,sendStatus`
 - **步骤**：
   1. 坐席在 Web 工作台向该用户发送：您好，我是 Hot70 客服
   2. 用户在 WhatsApp 查看是否收到
@@ -169,6 +181,7 @@
 
 - **前置**：已完成至少一轮用户↔机器人或用户↔人工对话
 - **输入**：—
+- **verify_profile**：`exec:use_handoff_session|checks:session_traceable,task_type,handoff_state_m8`
 - **步骤**：
   1. 调用 GET agent/session/{whatsappId}
   2. 调用 GET messages/{whatsappId}
@@ -186,6 +199,7 @@
 
 - **前置**：真机 WhatsApp；G1 就绪
 - **输入**：辱骂/敏感内容（测试文案）
+- **verify_profile**：`exec:manual_only|manual:真机辱骂敏感`
 - **步骤**：
   1. 发送辱骂或敏感内容（测试环境可控文案）
   2. 观察回复与稳定性
@@ -199,6 +213,7 @@
 
 - **前置**：真机；运营口径已确认
 - **输入**：竞品手机怎么样
+- **verify_profile**：`exec:webhook|messages:竞品手机怎么样|checks:webhook_ok|manual:运营口径`
 - **步骤**：
   1. 发送竞品对比类问题
   2. 对照运营规则
@@ -211,6 +226,7 @@
 
 - **前置**：真机；RAG 正常
 - **输入**：同一 FAQ 连问 2 次
+- **verify_profile**：`exec:webhook_multi|messages:Hot70 多少钱;Hot70 多少钱|manual:口径一致`
 - **步骤**：
   1. 同一 FAQ 连问 2 次
   2. 对比两次 outbound 关键事实
@@ -223,6 +239,7 @@
 
 - **前置**：真机；可模拟超时
 - **输入**：超时后发 FAQ
+- **verify_profile**：`exec:manual_only|manual:会话超时`
 - **步骤**：
   1. 空闲超过配置超时时间
   2. 再发 Hot70 相关问题
@@ -235,6 +252,7 @@
 
 - **前置**：iOS + Android 各 1 台测试机
 - **输入**：双端各测一轮
+- **verify_profile**：`exec:manual_only|manual:双端真机`
 - **步骤**：
   1. 双端分别发送 FAQ 与收回复
   2. 检查排版、emoji、链接
@@ -249,6 +267,7 @@
 
 - **前置**：G1 就绪
 - **输入**：   
+- **verify_profile**：`exec:webhook|messages:   |checks:empty_input_hint`
 - **步骤**：
   1. 发送空/纯空格
   2. 查回复
@@ -261,6 +280,7 @@
 
 - **前置**：G1 就绪
 - **输入**：😀😀😀
+- **verify_profile**：`exec:webhook|messages:😀😀😀|checks:gibberish_hint,emoji_handled`
 - **步骤**：
   1. 发送：😀😀😀
   2. 查回复
@@ -272,6 +292,7 @@
 
 - **前置**：G1 就绪
 - **输入**：asdfghjkl123
+- **verify_profile**：`exec:webhook|messages:asdfghjkl123|checks:gibberish_hint`
 - **步骤**：
   1. 发送：asdfghjkl123
   2. 查回复
@@ -283,6 +304,7 @@
 
 - **前置**：G1 就绪
 - **输入**：今天天气怎么样
+- **verify_profile**：`exec:webhook|messages:今天天气怎么样|checks:handoff_required,no_hallucination_handoff`
 - **步骤**：
   1. 发送：今天天气怎么样
   2. 查回复与 handoff
@@ -296,6 +318,7 @@
 
 - **前置**：G1 就绪
 - **输入**：火星上有 Hot70 吗
+- **verify_profile**：`exec:webhook|messages:火星上有 Hot70 吗|checks:handoff_required`
 - **步骤**：
   1. 发送无覆盖问题
   2. 查回复
@@ -308,6 +331,7 @@
 
 - **前置**：L1 mock 转人工失败
 - **输入**：（模拟转人工 API 失败）
+- **verify_profile**：`exec:manual_only|manual:mock转人工失败`
 - **步骤**：
   1. 模拟转人工 API 失败
   2. 查用户提示与日志
@@ -320,6 +344,7 @@
 
 - **前置**：L1 mock 发送失败
 - **输入**：（模拟智齿发送失败）
+- **verify_profile**：`exec:manual_only|manual:mock发送失败`
 - **步骤**：
   1. 模拟 outbound 失败
   2. 查提示与日志
@@ -332,6 +357,7 @@
 
 - **前置**：L1 mock >10s
 - **输入**：（模拟响应超过10秒）
+- **verify_profile**：`exec:manual_only|manual:mock超时`
 - **步骤**：
   1. 模拟超时
   2. 查用户提示
@@ -344,6 +370,7 @@
 
 - **前置**：G1 就绪
 - **输入**：（用户发图片）
+- **verify_profile**：`exec:manual_only|manual:非文本消息`
 - **步骤**：
   1. 用户发送图片（或模拟）
   2. 查回复
@@ -355,6 +382,7 @@
 
 - **前置**：真机
 - **输入**：你是傻逼（测试文案）
+- **verify_profile**：`exec:webhook|messages:测试辱骂文案|checks:handoff_required|manual:礼貌回应`
 - **步骤**：
   1. 发送辱骂测试文案
   2. 查回复
@@ -367,6 +395,7 @@
 
 - **前置**：G1 就绪
 - **输入**：价格多少还有门店在哪
+- **verify_profile**：`exec:webhook|messages:价格多少还有门店在哪|checks:clarify_multi_intent`
 - **步骤**：
   1. 发送：价格多少还有门店在哪
   2. 查回复
@@ -378,6 +407,7 @@
 
 - **前置**：真机
 - **输入**：（超时30分钟后）Hot70 多少钱
+- **verify_profile**：`exec:manual_only|manual:超时后再进线`
 - **步骤**：
   1. 超时 30 分钟后发送 FAQ
   2. 查回复
@@ -389,6 +419,7 @@
 
 - **前置**：真机
 - **输入**：3秒连发10条在吗
+- **verify_profile**：`exec:manual_only|manual:刷屏10条`
 - **步骤**：
   1. 3 秒连发 10 条「在吗」
   2. 查回复
@@ -401,6 +432,7 @@
 
 - **前置**：L1 mock 任意 API 异常
 - **输入**：（触发任意 API 异常）
+- **verify_profile**：`exec:manual_only|manual:API异常文案`
 - **步骤**：
   1. 触发 API 异常
   2. 查用户可见文案
@@ -415,6 +447,7 @@
 
 - **前置**：L1/L3 环境就绪；webhook 或真机可用
 - **输入**：Hello
+- **verify_profile**：`exec:webhook|messages:Hello|checks:webhook_ok,inbound_ok,handoff_or_faq`
 - **步骤**：
   1. 用户发送：Hello
   2. 查看是否有 outbound 或兜底回复
@@ -429,6 +462,7 @@
 
 - **前置**：知识库含英文或跨语言检索已配置
 - **输入**：How to pre-order?
+- **verify_profile**：`exec:webhook|messages:How to pre-order?|checks:webhook_ok,handoff_or_faq,task_type`
 - **步骤**：
   1. 用户发送：How to pre-order?
   2. 查看回复内容与 task_type
@@ -443,6 +477,7 @@
 
 - **前置**：G1 就绪
 - **输入**：😀👍
+- **verify_profile**：`exec:webhook|messages:😀👍|checks:webhook_ok,emoji_handled`
 - **步骤**：
   1. 用户发送：😀👍
   2. 观察回复与日志
@@ -456,6 +491,7 @@
 
 - **前置**：G1 就绪
 - **输入**：   
+- **verify_profile**：`exec:webhook|messages:   |checks:webhook_ok,empty_input_hint`
 - **步骤**：
   1. 用户发送纯空格或空内容
   2. 查看回复
@@ -468,6 +504,7 @@
 
 - **前置**：G1 就绪
 - **输入**：>500 字重复或长段文本
+- **verify_profile**：`exec:webhook|messages:>500字|checks:webhook_ok,long_text_ok`
 - **步骤**：
   1. 用户发送超过 500 字文本
   2. 查看回复
@@ -481,6 +518,7 @@
 
 - **前置**：G1 就绪
 - **输入**：连发 3 条不同问题
+- **verify_profile**：`exec:webhook_multi|checks:webhook_ok,multi_inbound,session_stable`
 - **步骤**：
   1. 3 秒内连续发送 3 条不同 FAQ 问题
   2. 查看 3 条 inbound 与对应 outbound
@@ -495,6 +533,7 @@
 
 - **前置**：Gateway 或智齿发送链路已连通
 - **输入**：任意 FAQ 问法
+- **verify_profile**：`exec:webhook|messages:Hot70 多少钱|checks:webhook_ok,outbound≤10s|manual:真机WA可见`
 - **步骤**：
   1. 发送任意 FAQ 问题
   2. 在用户 WA 端确认可见 outbound
@@ -507,6 +546,7 @@
 
 - **前置**：发送链路正常；准备 30 条抽样问法
 - **输入**：30 条 FAQ 抽样
+- **verify_profile**：`exec:metrics|corpus:kb-sample|checks:metrics_aggregate`
 - **步骤**：
   1. 对 30 条 FAQ 逐条发送并计时（发消息→收到 outbound）
   2. 计算平均耗时
@@ -519,6 +559,7 @@
 
 - **前置**：可 mock 或使用测试开关模拟发送失败
 - **输入**：模拟智齿/网关发送失败
+- **verify_profile**：`exec:manual_only|manual:mock发送失败,error日志`
 - **步骤**：
   1. 模拟 outbound API 失败
   2. 触发一次机器人回复
@@ -533,6 +574,7 @@
 
 - **前置**：L1 可重复 POST 同一 webhook
 - **输入**：同一 message_id 回调 2 次
+- **verify_profile**：`exec:manual_only|manual:重复message_id`
 - **步骤**：
   1. 用相同 message_id 连续 POST webhook 2 次
   2. 统计 outbound 条数
@@ -547,6 +589,7 @@
 
 - **前置**：G1 就绪
 - **输入**：FAQ 无覆盖问题（如火星上有 Hot70 吗）
+- **verify_profile**：`exec:webhook|messages:火星上有 Hot70 吗|checks:handoff_required,no_hallucination_handoff`
 - **步骤**：
   1. 发送 FAQ 明确无覆盖的问题
   2. 查回复与 handoff
@@ -560,6 +603,7 @@
 
 - **前置**：G1 就绪
 - **输入**：还有库存吗
+- **verify_profile**：`exec:webhook|messages:还有库存吗|checks:handoff_required,no_hallucination_handoff`
 - **步骤**：
   1. 发送：还有库存吗
   2. 查回复与 handoff
@@ -573,6 +617,7 @@
 
 - **前置**：G1 就绪
 - **输入**：我的订单到哪了
+- **verify_profile**：`exec:webhook|messages:我的订单到哪了|checks:handoff_required,no_hallucination_handoff`
 - **步骤**：
   1. 发送：我的订单到哪了
   2. 查回复
@@ -586,6 +631,7 @@
 
 - **前置**：G1 就绪
 - **输入**：触发未命中问法
+- **verify_profile**：`exec:webhook|messages:随便乱问xyz|checks:handoff_required|manual:audit汇总`
 - **步骤**：
   1. 触发未命中
   2. 查 audit/tools/session
@@ -601,6 +647,7 @@
 
 - **前置**：坐席 online；autoAssign 已开启
 - **输入**：转人工
+- **verify_profile**：`exec:webhook|messages:转人工|checks:local_handoff,handoff_assigned`
 - **步骤**：
   1. 用户发送明确转人工话术（或触发 AI handoff 的问题）
   2. 查看 Web 工作台分配
@@ -615,6 +662,7 @@
 
 - **前置**：已完成本地转人工
 - **输入**：转人工后再发 3 条
+- **verify_profile**：`exec:handoff_then_silence|messages:在吗;请问;hello|checks:no_bot_outbound`
 - **步骤**：
   1. 转人工后再连发 3 条：在吗、请问、hello
   2. 统计新增机器人 outbound 条数
@@ -627,6 +675,7 @@
 
 - **前置**：ZHICHI 渠道；externalHandoffEnabled=true；已触发 external-handoff
 - **输入**：external-handoff
+- **verify_profile**：`exec:defer_ext|manual:partnerid,wa_id`
 - **步骤**：
   1. 执行 external-handoff
   2. 在智齿工作台/日志查看用户标识
@@ -640,6 +689,7 @@
 
 - **前置**：先多轮 FAQ 对话再 external-handoff
 - **输入**：多轮 FAQ 后 external-handoff
+- **verify_profile**：`exec:defer_ext|manual:多轮FAQ后EXT,最近意图`
 - **步骤**：
   1. 先问价格/配置类问题 2-3 轮
   2. 执行 external-handoff
@@ -653,6 +703,7 @@
 
 - **前置**：已有多轮文本对话
 - **输入**：多轮后 external-handoff
+- **verify_profile**：`exec:defer_ext|manual:history_messages条数`
 - **步骤**：
   1. 进行 ≥3 轮文本对话
   2. external-handoff
@@ -667,6 +718,7 @@
 
 - **前置**：用户有 sender_name 或 profile
 - **输入**：external-handoff
+- **verify_profile**：`exec:defer_ext|manual:昵称字段`
 - **步骤**：
   1. external-handoff
   2. 查智齿工作台昵称字段
@@ -679,6 +731,7 @@
 
 - **前置**：智齿转人工 API 可用
 - **输入**：external-handoff
+- **verify_profile**：`exec:defer_ext|manual:tran_flag`
 - **步骤**：
   1. external-handoff
   2. 查请求/日志中 tran_flag
@@ -691,6 +744,7 @@
 
 - **前置**：渠道 config 含 source/摘要等
 - **输入**：external-handoff
+- **verify_profile**：`exec:defer_ext|manual:params,customer_fields`
 - **步骤**：
   1. external-handoff
   2. 查 params、customer_fields
@@ -703,6 +757,7 @@
 
 - **前置**：external_handoff 已成功
 - **输入**：转人工后再发 3 条
+- **verify_profile**：`exec:defer_ext|manual:EXT后静默`
 - **步骤**：
   1. 转人工后再发 3 条用户消息
   2. 确认无新的机器人 FAQ outbound
@@ -718,6 +773,7 @@
 
 - **前置**：external-handoff 已触发；groupid 已在 handoff-allocation.md 记录
 - **输入**：external-handoff
+- **verify_profile**：`exec:defer_ext|manual:groupid`
 - **步骤**：
   1. 执行 external-handoff
   2. 查请求/日志/智齿侧 groupid
@@ -731,6 +787,7 @@
 
 - **前置**：智齿技能组内有 online 坐席
 - **输入**：external-handoff
+- **verify_profile**：`exec:defer_ext|manual:技能组接单`
 - **步骤**：
   1. external-handoff
   2. 登录智齿工作台查看会话队列/分配
@@ -744,6 +801,7 @@
 
 - **前置**：坐席已接单
 - **输入**：external-handoff 后坐席回复
+- **verify_profile**：`exec:defer_ext|manual:智齿坐席回传`
 - **步骤**：
   1. 智齿坐席发送回复
   2. 用户 WA 查看
@@ -760,6 +818,7 @@
 
 - **前置**：用户已转人工；坐席可发消息
 - **输入**：坐席纯文本示例
+- **verify_profile**：`exec:use_handoff_session|manual:sendManual纯文本`
 - **步骤**：
   1. 坐席发送单段纯文本
   2. 用户 WA 确认
@@ -772,6 +831,7 @@
 
 - **前置**：已转人工
 - **输入**：多行文本
+- **verify_profile**：`exec:use_handoff_session|manual:多行文本`
 - **步骤**：
   1. 坐席发送含换行的多行消息
   2. 用户 WA 查看排版
@@ -784,6 +844,7 @@
 
 - **前置**：已转人工
 - **输入**：坐席连发 3 条
+- **verify_profile**：`exec:use_handoff_session|manual:连发3条`
 - **步骤**：
   1. 坐席连续发送 3 条不同消息
   2. 用户确认 3 条均到达且顺序合理
@@ -796,6 +857,7 @@
 
 - **前置**：已转人工；Q02 已确认
 - **输入**：用户再发消息
+- **verify_profile**：`exec:handoff_then_silence|messages:再咨询一条|checks:no_bot_outbound|manual:坐席继续回复`
 - **步骤**：
   1. 用户再发一条咨询
   2. 观察是否有机器人 outbound
@@ -809,6 +871,7 @@
 
 - **前置**：已转人工；可统计 ≥20 次坐席发送
 - **输入**：≥20 次坐席发送抽样
+- **verify_profile**：`exec:manual_only|manual:送达率≥20样本`
 - **步骤**：
   1. 记录 ≥20 次坐席 outbound
   2. 用户在 WA 确认是否收到
@@ -824,6 +887,7 @@
 
 - **前置**：已有 ≥2 轮对话样本
 - **输入**：—
+- **verify_profile**：`exec:webhook_multi|checks:session_stable,multi_inbound`
 - **步骤**：
   1. 同一用户连续发送 2+ 条消息
   2. GET agent/session 与 Conversation
@@ -837,6 +901,7 @@
 
 - **前置**：有测试对话
 - **输入**：—
+- **verify_profile**：`exec:webhook|messages:你好|checks:inbound_ok|manual:wa_id对照`
 - **步骤**：
   1. 查 Conversation.whatsappId 与 messages
   2. 与真实 WA 号对照
@@ -849,6 +914,7 @@
 
 - **前置**：有 inbound+outbound 样本
 - **输入**：—
+- **verify_profile**：`exec:webhook|messages:Hot70 多少钱|checks:outbound≤10s,inbound_ok`
 - **步骤**：
   1. 取 inbound 与下一条 outbound 的 timestamp
   2. 计算差值
@@ -861,6 +927,7 @@
 
 - **前置**：有 inbound 样本
 - **输入**：—
+- **verify_profile**：`exec:webhook|messages:测试关键词ABC|checks:inbound_ok`
 - **步骤**：
   1. 发送含特定关键词的消息
   2. 查 messages inbound content
@@ -872,6 +939,7 @@
 
 - **前置**：Agent 已处理至少 1 条
 - **输入**：—
+- **verify_profile**：`exec:webhook|messages:Hot70 多少钱|checks:task_type`
 - **步骤**：
   1. 发送 FAQ 问题
   2. 查 ChatMessage.intent 或 agent/session task_type
@@ -884,6 +952,7 @@
 
 - **前置**：有 agent steps
 - **输入**：—
+- **verify_profile**：`exec:webhook|messages:Hot70 多少钱|checks:task_type|manual:confidence_in_steps`
 - **步骤**：
   1. GET agent/session steps
   2. 查 output_json.confidence
@@ -896,6 +965,7 @@
 
 - **前置**：RAG 正常时
 - **输入**：—
+- **verify_profile**：`exec:webhook|messages:Hot70 多少钱|checks:rag_tool_ok`
 - **步骤**：
   1. 发送 FAQ 命中问法
   2. GET agent/tools/logs 查 RagflowTool
@@ -908,6 +978,7 @@
 
 - **前置**：有成功 outbound
 - **输入**：—
+- **verify_profile**：`exec:webhook|messages:Hot70 多少钱|checks:webhook_ok|manual:WA对照`
 - **步骤**：
   1. 对比用户 WA 所见与 messages outbound content
   2. 查 bot 日志
@@ -920,6 +991,7 @@
 
 - **前置**：已触发转人工
 - **输入**：—
+- **verify_profile**：`exec:use_handoff_session|checks:handoff_state_m8`
 - **步骤**：
   1. 转人工后查 Conversation
   2. 对照 handoff-dual-path 预期状态
@@ -932,6 +1004,7 @@
 
 - **前置**：有未命中/转人工样本
 - **输入**：—
+- **verify_profile**：`exec:webhook|messages:火星上有 Hot70 吗|checks:handoff_required|manual:audit汇总`
 - **步骤**：
   1. 发送无覆盖问题
   2. 查 audit-logs 与 handoff 记录
@@ -945,6 +1018,7 @@
 
 - **前置**：可触发或已有失败样本
 - **输入**：—
+- **verify_profile**：`exec:manual_only|manual:error日志`
 - **步骤**：
   1. 查找 sendStatus=failed 或模拟异常
   2. 查服务端 [ZHICHI_*]/error 日志
@@ -959,6 +1033,7 @@
 
 - **前置**：Blocked：后端未实现 PRD 五类智齿客户标签
 - **输入**：我已经预订了还没提
+- **verify_profile**：`exec:blocked`
 - **步骤**：
   1. 用户发送：我已经预订了还没提
   2. 查智齿客户标签 API/后台
@@ -971,6 +1046,7 @@
 
 - **前置**：Blocked
 - **输入**：分期怎么买
+- **verify_profile**：`exec:blocked`
 - **步骤**：
   1. 用户发送：分期怎么买
   2. 查智齿标签
@@ -982,6 +1058,7 @@
 
 - **前置**：Blocked
 - **输入**：只想领福利
+- **verify_profile**：`exec:blocked`
 - **步骤**：
   1. 用户发送：只想领福利
   2. 查智齿标签
@@ -993,6 +1070,7 @@
 
 - **前置**：Blocked
 - **输入**：我已经提机了
+- **verify_profile**：`exec:blocked`
 - **步骤**：
   1. 用户发送：我已经提机了
   2. 查智齿标签
@@ -1004,6 +1082,7 @@
 
 - **前置**：Blocked
 - **输入**：进线无消息
+- **verify_profile**：`exec:blocked`
 - **步骤**：
   1. 模拟进线无用户消息
   2. 查标签策略
@@ -1015,6 +1094,7 @@
 
 - **前置**：Blocked
 - **输入**：你好
+- **verify_profile**：`exec:blocked`
 - **步骤**：
   1. 用户仅发送：你好
   2. 查智齿标签是否变化
@@ -1026,6 +1106,7 @@
 
 - **前置**：Blocked
 - **输入**：先问价格后说已预订
+- **verify_profile**：`exec:blocked`
 - **步骤**：
   1. 先问价格再说已预订
   2. 查标签变化
@@ -1037,6 +1118,7 @@
 
 - **前置**：Blocked；≥20 样本
 - **输入**：应写场景抽样
+- **verify_profile**：`exec:blocked`
 - **步骤**：
   1. 执行应打标场景 ≥20 次
   2. 统计智齿写入成功数

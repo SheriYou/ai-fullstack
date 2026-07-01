@@ -32,6 +32,17 @@ from prd_acceptance_metrics import (  # noqa: E402
     metrics_to_summary_dict,
 )
 from run_bundle import finalize_run_bundle, run_dir  # noqa: E402
+from bug_registry import (  # noqa: E402
+    BUG_CASE_MAPPING_FIELDS,
+    BUG_CSV_FIELDS,
+    build_bug_registry,
+    bug_case_mapping_rows,
+    bugs_to_csv_rows,
+    bugs_to_json,
+    case_to_bugs_map,
+    classify_formal_fail,
+    format_bug_management_markdown,
+)
 from run_test_suite import (  # noqa: E402
     DEFAULT_BASE,
     DEFAULT_PASS,
@@ -39,8 +50,9 @@ from run_test_suite import (  # noqa: E402
     Client,
     find_conversation,
     outbound_texts,
-    run_smoke,
 )
+from case_executor import poll_turn_state, user_message_from_input  # noqa: E402
+from test_case_runner import run_all_formal_cases  # noqa: E402
 
 CORPUS_FILES = {
     "intent": DATA / "corpus-intent.csv",
@@ -58,12 +70,12 @@ def load_rows(path: Path) -> list[dict]:
 
 def eval_corpus_row(client: Client, channel: str, bl: int, row: dict, wait: float) -> dict:
     cid = row.get("id", "")
-    text = (row.get("input") or "").strip()
-    if not text or text.startswith("("):
+    text = user_message_from_input(row.get("input") or "")
+    if not text:
         return {
             "id": cid,
             "corpus": row.get("_corpus", ""),
-            "input": text,
+            "input": (row.get("input") or "")[:80],
             "whatsapp_id": "",
             "session_id": "",
             "response_ms": "",
@@ -72,24 +84,27 @@ def eval_corpus_row(client: Client, channel: str, bl: int, row: dict, wait: floa
             "automation_result": "SKIP",
             "business_result": "NA",
             "fail_class": "NA",
-            "notes": "non-simulatable input",
+            "notes": "non-simulatable input (steps/preconditions only)",
         }
+
+    corpus_name = row.get("_corpus", "")
+    should_ho = (row.get("should_handoff") or "").lower()
+    action = (row.get("expected_action") or "").lower()
+    expect_handoff = should_ho == "true" or action == "handoff"
 
     wa = f"l2-{uuid.uuid4().hex[:10]}@s.whatsapp.net"
     t0 = time.perf_counter()
     st, wh = client.webhook(channel, wa, text)
-    time.sleep(wait)
-    sess = client.session(bl, wa)
-    msgs = client.messages(bl, wa)
-    conv = find_conversation(client.conversations(bl), wa)
-    texts = outbound_texts(msgs)
+    poll_wait = max(wait, 4.0) if expect_handoff else wait
+    sess, msgs, conv, texts = poll_turn_state(
+        client, bl, wa, wait_s=poll_wait, expect_handoff=expect_handoff,
+    )
     task_type = session_task_type(sess)
     handoff = is_handoff(sess, conv)
     wh_ok = st == 200 and (wh.get("data") or {}).get("status") == "success"
     auto = "PASS" if wh_ok else "FAIL"
     resp_ms = first_response_ms(msgs, fallback_wait_ms=wait * 1000)
 
-    corpus_name = row.get("_corpus", "")
     biz, note_list, routing_pass = eval_row_by_corpus(
         corpus=corpus_name,
         row=row,
@@ -146,22 +161,30 @@ def run_all_corpus(client: Client, channel: str, bl: int, wait: float) -> list[d
     return results
 
 
-def write_reports(run_id: str, executed_at: str, smoke: list, corpus: list, meta: dict):
+def write_reports(run_id: str, executed_at: str, formal: list, corpus: list, meta: dict):
     REPORTS.mkdir(parents=True, exist_ok=True)
 
-    sp = sum(1 for r in smoke if r["status"] == "PASS")
-    sf = sum(1 for r in smoke if r["status"] == "FAIL")
+    smoke = [r for r in formal if str(r.get("case_id", "")).startswith("TC-SMOKE")]
+    sp = sum(1 for r in smoke if r.get("business_result") == "PASS")
+    sf = sum(1 for r in smoke if r.get("business_result") in ("FAIL", "PARTIAL"))
+    fp = sum(1 for r in formal if r.get("business_result") == "PASS")
+    ff = sum(1 for r in formal if r.get("business_result") == "FAIL")
+    fpartial = sum(1 for r in formal if r.get("business_result") == "PARTIAL")
     cp = sum(1 for r in corpus if r.get("business_result") == "PASS")
     cf = sum(1 for r in corpus if r.get("business_result") == "FAIL")
     cs = sum(1 for r in corpus if r.get("status") == "SKIP")
     ca = sum(1 for r in corpus if r.get("automation_result") == "PASS")
 
-    prd_metrics = compute_all_metrics(smoke, corpus)
+    smoke_for_metrics = [
+        {"id": r["case_id"], "status": "PASS" if r.get("business_result") == "PASS" else "FAIL"}
+        for r in smoke
+    ]
+    prd_metrics = compute_all_metrics(smoke_for_metrics, corpus)
     l4_notes = l4_case_notes(prd_metrics)
 
     bundle = run_dir(run_id)
     lines = [
-        f"# Hot70 {'冒烟测试' if not corpus else '全量自动化测试'}报告",
+        "# Hot70 全量自动化测试报告",
         "",
         f"> {executed_at}",
         "",
@@ -176,23 +199,37 @@ def write_reports(run_id: str, executed_at: str, smoke: list, corpus: list, meta
         "",
         "## 汇总",
         "",
-        f"| 范围 | 总数 | 自动化Pass | 业务Pass | Fail | Skip |",
-        f"|------|------|------------|----------|------|------|",
-        f"| G2 冒烟 | {len(smoke)} | {sp} | {sp} | {sf} | 0 |",
-        f"| L2 语料 | {len(corpus)} | {ca} | {cp} | {cf} | {cs} |",
-        f"| **合计** | {len(smoke)+len(corpus)} | {sp+ca} | {sp+cp} | {sf+cf} | {cs} |",
+        f"| 范围 | 总数 | 业务Pass | Fail | Partial | Skip/Defer |",
+        f"|------|------|----------|------|---------|------------|",
+        f"| Formal 用例 (TC-*) | {len(formal)} | {fp} | {ff} | {fpartial} | {sum(1 for r in formal if r.get('execution_status') in ('NOT_RUN','BLOCKED','SKIP'))} |",
+        f"| G2 冒烟 | {len(smoke)} | {sp} | {sf} | 0 | 0 |",
+        f"| L2 语料 | {len(corpus)} | {cp} | {cf} | 0 | {cs} |",
         "",
     ]
     lines += format_metrics_markdown(prd_metrics)
     lines += [
-        "## G2 冒烟",
+        "## G2 冒烟（Formal verify_profile）",
         "",
-        "| ID | 结果 | 输入 | 说明 |",
-        "|----|------|------|------|",
+        "| ID | 结果 | 验证点摘要 |",
+        "|----|------|------------|",
     ]
     for r in smoke:
-        note = r.get("outbound_preview") or r.get("note") or r.get("conversation_status") or ""
-        lines.append(f"| {r['id']} | {r['status']} | {str(r.get('input',''))[:30]} | {str(note)[:60]} |")
+        lines.append(
+            f"| {r.get('case_id','')} | {r.get('business_result','')} | {str(r.get('notes',''))[:70]} |"
+        )
+
+    formal_fails = [r for r in formal if r.get("business_result") == "FAIL"][:25]
+    lines += [
+        "",
+        "## Formal 用例 Fail 样例 Top25",
+        "",
+        "| ID | 模块 | 结果 | notes |",
+        "|----|------|------|-------|",
+    ]
+    for r in formal_fails:
+        lines.append(
+            f"| {r.get('case_id','')} | {r.get('module','')} | {r.get('business_result','')} | {str(r.get('notes',''))[:50]} |"
+        )
 
     fails = [r for r in corpus if r.get("business_result") == "FAIL"][:30]
     lines += [
@@ -202,54 +239,68 @@ def write_reports(run_id: str, executed_at: str, smoke: list, corpus: list, meta
         "| ID | corpus | 业务 | fail_class | task_type | notes |",
         "|----|--------|------|------------|-----------|-------|",
     ]
-    for r in fails:
-        lines.append(
-            f"| {r['id']} | {r.get('corpus','')} | {r.get('business_result','')} | "
-            f"{r.get('fail_class','')} | {r.get('task_type','')} | {str(r.get('notes',''))[:40]} |"
-        )
+    if fails:
+        for r in fails:
+            lines.append(
+                f"| {r['id']} | {r.get('corpus','')} | {r.get('business_result','')} | "
+                f"{r.get('fail_class','')} | {r.get('task_type','')} | {str(r.get('notes',''))[:40]} |"
+            )
+    else:
+        lines.append("| — | — | — | — | — | 本轮未执行或无 Fail |")
+    lines.append("")
+
+    bugs, bug_analysis = build_bug_registry(run_id, formal, corpus)
+    case_bugs = case_to_bugs_map(bugs)
+    lines += format_bug_management_markdown(bugs, bug_analysis)
+
     lines += [
         "",
         "## 说明",
         "",
-        "- L3 真机/坐席/智齿用例未在本轮执行（需人工）",
-        "- M9 标签模块 Blocked",
+        "- Formal 用例按 `verify_profile` 逐条断言；`MANUAL_PENDING` 项需 L3 人工补测",
+        "- L2 语料为 FAQ 批量回归，补充 intent/kb/handoff 指标",
+        "- 缺陷清单见 `bug-registry.csv`；用例↔缺陷见 `bug-case-mapping.csv`",
         f"- 本轮全部产出物见 `{bundle.relative_to(ROOT).as_posix()}/`（含 Word 报告 `test-report.docx`）",
         "",
     ]
     report_md_text = "\n".join(lines)
 
-    corpus_by_id = {r["id"]: r for r in corpus}
-    smoke_by_id = {r["id"]: r for r in smoke}
+    formal_by_id = {r["case_id"]: r for r in formal}
 
     cases = load_rows(DATA / "test-cases-full.csv")
     out_fields = [
         "run_id", "executed_at", "case_id", "module", "title", "layer", "priority",
-        "execution_status", "automation_result", "business_result", "notes",
+        "execution_status", "automation_result", "business_result", "fail_class", "bug_ids", "notes",
     ]
     structured = []
     for c in cases:
         cid = c["id"]
-        if cid.startswith(BLOCKED_PREFIXES):
+        if cid in formal_by_id:
+            r = formal_by_id[cid]
+            note = r.get("notes") or ""
+            if r.get("session_id"):
+                note = f"session_id={r['session_id']}; {note}".strip("; ")
             structured.append({
                 "run_id": run_id, "executed_at": executed_at, "case_id": cid,
                 "module": c["module"], "title": c["title"], "layer": c["layer"],
-                "priority": c["priority"], "execution_status": "BLOCKED",
-                "automation_result": "NA", "business_result": "NA",
-                "notes": "PRD 智齿五类标签后端未实现",
-            })
-        elif cid in smoke_by_id:
-            r = smoke_by_id[cid]
-            note = r.get("outbound_preview") or r.get("note") or ""
-            sid = r.get("session_id") or ""
-            if sid:
-                note = f"session_id={sid}; {note}".strip("; ")
-            structured.append({
-                "run_id": run_id, "executed_at": executed_at, "case_id": cid,
-                "module": c["module"], "title": c["title"], "layer": c["layer"],
-                "priority": c["priority"], "execution_status": "EXECUTED",
-                "automation_result": "PASS" if r["status"] == "PASS" else "FAIL",
-                "business_result": "PASS" if r["status"] == "PASS" else "FAIL",
+                "priority": c["priority"],
+                "execution_status": r.get("execution_status", "NOT_RUN"),
+                "automation_result": r.get("automation_result", "NA"),
+                "business_result": r.get("business_result", "NA"),
+                "fail_class": classify_formal_fail(r),
+                "bug_ids": ";".join(case_bugs.get(cid, [])),
                 "notes": note,
+            })
+        elif cid.startswith(BLOCKED_PREFIXES):
+            structured.append({
+                "run_id": run_id, "executed_at": executed_at, "case_id": cid,
+                "module": c["module"], "title": c["title"], "layer": c["layer"],
+                "priority": c["priority"],
+                "execution_status": "BLOCKED",
+                "automation_result": "NA", "business_result": "NA",
+                "fail_class": "NA",
+                "bug_ids": "",
+                "notes": "PRD 智齿五类标签后端未实现",
             })
         elif cid in l4_notes:
             note = l4_notes[cid]
@@ -262,6 +313,8 @@ def write_reports(run_id: str, executed_at: str, smoke: list, corpus: list, meta
                     "priority": c["priority"], "execution_status": "EXECUTED",
                     "automation_result": "NA",
                     "business_result": m.verdict if m.verdict in ("PASS", "FAIL") else "NA",
+                    "fail_class": "—" if m.verdict == "PASS" else "NA",
+                    "bug_ids": "",
                     "notes": note,
                 })
             else:
@@ -270,6 +323,8 @@ def write_reports(run_id: str, executed_at: str, smoke: list, corpus: list, meta
                     "module": c["module"], "title": c["title"], "layer": c["layer"],
                     "priority": c["priority"], "execution_status": "NOT_RUN",
                     "automation_result": "NA", "business_result": "NA",
+                    "fail_class": "NA",
+                    "bug_ids": "",
                     "notes": note,
                 })
         else:
@@ -278,13 +333,15 @@ def write_reports(run_id: str, executed_at: str, smoke: list, corpus: list, meta
                 "module": c["module"], "title": c["title"], "layer": c["layer"],
                 "priority": c["priority"], "execution_status": "NOT_RUN",
                 "automation_result": "NA", "business_result": "NA",
-                "notes": "L3/人工/接口探针，本轮未自动化",
+                "fail_class": "NA",
+                "bug_ids": "",
+                "notes": "未在 profile 中配置或未执行",
             })
 
     cfields = [
         "run_id", "executed_at", "case_id", "corpus", "input",
         "whatsapp_id", "session_id", "response_ms", "routing_pass",
-        "execution_status", "automation_result", "business_result", "fail_class",
+        "execution_status", "automation_result", "business_result", "fail_class", "bug_ids",
         "task_type", "should_handoff", "notes",
     ]
     corpus_out = []
@@ -303,6 +360,7 @@ def write_reports(run_id: str, executed_at: str, smoke: list, corpus: list, meta
             "automation_result": r.get("automation_result", ""),
             "business_result": r.get("business_result", ""),
             "fail_class": r.get("fail_class", ""),
+            "bug_ids": ";".join(case_bugs.get(r["id"], [])),
             "task_type": r.get("task_type", ""),
             "should_handoff": r.get("should_handoff", ""),
             "notes": r.get("notes", ""),
@@ -311,6 +369,10 @@ def write_reports(run_id: str, executed_at: str, smoke: list, corpus: list, meta
     summary = {
         "run_id": run_id,
         "executed_at": executed_at,
+        "formal_total": len(formal),
+        "formal_pass": fp,
+        "formal_fail": ff,
+        "formal_partial": fpartial,
         "smoke_pass": sp,
         "smoke_fail": sf,
         "corpus_total": len(corpus),
@@ -320,7 +382,11 @@ def write_reports(run_id: str, executed_at: str, smoke: list, corpus: list, meta
         "corpus_skip": cs,
         "metrics": metrics_to_summary_dict(prd_metrics),
         "l2_gates_pass": all(g.verdict == "PASS" for g in prd_metrics["l2_gates"]),
+        "bugs": bugs_to_json(bugs, bug_analysis),
     }
+
+    bug_rows = bugs_to_csv_rows(bugs, run_id, executed_at)
+    mapping_rows = bug_case_mapping_rows(bugs, run_id, executed_at)
 
     paths = finalize_run_bundle(
         run_id=run_id,
@@ -331,6 +397,10 @@ def write_reports(run_id: str, executed_at: str, smoke: list, corpus: list, meta
         structured_fields=list(out_fields),
         corpus_rows=corpus_out,
         corpus_fields=cfields,
+        bug_rows=bug_rows,
+        bug_fields=BUG_CSV_FIELDS,
+        bug_mapping_rows=mapping_rows,
+        bug_mapping_fields=BUG_CASE_MAPPING_FIELDS,
     )
     summary["report_md"] = str(paths["report_md"].relative_to(ROOT)).replace("\\", "/")
     summary["report_docx"] = str(paths["report_docx"].relative_to(ROOT)).replace("\\", "/")
@@ -354,12 +424,13 @@ def main():
         sys.exit(1)
     print("LOGIN OK", flush=True)
 
-    wa = f"smoke-{uuid.uuid4().hex[:8]}@s.whatsapp.net"
-    print(f"smoke wa={wa}", flush=True)
-    smoke = run_smoke(client, channel, bl, wa, wait)
-    print(f"smoke done pass={sum(1 for r in smoke if r['status']=='PASS')} fail={sum(1 for r in smoke if r['status']=='FAIL')}", flush=True)
+    print("running formal test cases (verify_profile)...", flush=True)
+    formal = run_all_formal_cases(client, channel, bl, max(wait, 4.0))
+    fp = sum(1 for r in formal if r.get("business_result") == "PASS")
+    ff = sum(1 for r in formal if r.get("business_result") == "FAIL")
+    print(f"formal done pass={fp} fail={ff} partial={sum(1 for r in formal if r.get('business_result')=='PARTIAL')}", flush=True)
 
-    print("running full L2 corpus...", flush=True)
+    print("running L2 corpus...", flush=True)
     corpus = run_all_corpus(client, channel, bl, wait)
     print(
         f"corpus done auto_pass={sum(1 for r in corpus if r.get('automation_result')=='PASS')} "
@@ -369,7 +440,7 @@ def main():
         flush=True,
     )
 
-    md, summary = write_reports(run_id, executed_at, smoke, corpus, {
+    md, summary = write_reports(run_id, executed_at, formal, corpus, {
         "base": DEFAULT_BASE,
         "channel": channel,
         "business_line_id": bl,

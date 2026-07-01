@@ -21,6 +21,8 @@ reports/
 
 根目录仍保留 `test-run-{run_id}.*` 副本，便于按文件名搜索。
 
+> **Git**：上述 run 产出物与 `runs/` 目录**不入库**；仅 `README.md`、审阅文档、`e2e-log.csv` 等静态文件 push 远程。见框架根 `.gitignore` 与 `FRAMEWORK.md` §7。
+
 ## 常用命令
 
 ```bash
@@ -50,6 +52,7 @@ python ../../../scripts/daily_cleanup.py --project hot70-wa-bot --dry-run
 
 | 字段 | 含义 |
 |------|------|
+| `verify_profile` | 机器可读验证点（exec + checks + manual），脚本逐条断言 |
 | `execution_status` | `EXECUTED` 已跑 / `NOT_RUN` 未跑 / `BLOCKED` 功能未实现 |
 | `automation_result` | 接口层：webhook/API 是否可达 |
 | `business_result` | 业务层：是否符合用例预期（**验收以此为准**） |
@@ -58,7 +61,13 @@ python ../../../scripts/daily_cleanup.py --project hot70-wa-bot --dry-run
 | `fail_class` | DEV_BUG / SPEC_DEFECT / HARNESS / ENV（见 `spec/l2-fail-classification.md`） |
 | `response_ms` | inbound→首条 outbound 毫秒（L2 代理响应时间） |
 
-## 报告章节（V2.3）
+## Formal 用例执行（V2.4）
+
+- **82 条 TC-\*** 均有 `verify_profile`（见 `scripts/test_case_profile_map.py`）
+- `run_full_test.py` → `test_case_runner.py` 按 profile 执行，**非**仅发 input 字符串
+- `MANUAL_PENDING` / `PARTIAL` = 自动化项已过，尚需 L3 人工（Web/sendManual/真机）
+
+## 报告章节（V2.4）
 
 | 章节 | 内容 |
 |------|------|

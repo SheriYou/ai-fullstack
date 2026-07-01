@@ -75,6 +75,6 @@
 1. POST webhook 注入 `corpus-*.csv` 的 `input`
 2. 等待 Agent 处理（轮询 session 或固定 sleep）
 3. GET `agent/session` + `messages` + `tools/logs`
-4. 断言：`task_type` / `should_handoff` / 回复关键词（见 `spec/intent-task-mapping.md`）
+4. 断言：**LOCAL 转人工**查 `Conversation.handoffTarget=LOCAL` + `isActiveAgent=0`（**非** outbound 英文兜底文案）；FAQ 查 facts / 路由。见 `scripts/case_executor.py`
 
 脚本：`scripts/run_l2_eval.py`（需 `config.env` 中 `BOT_TEST_API_URL`）

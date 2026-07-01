@@ -3,6 +3,13 @@
 """L2 语料评估：分 corpus 断言、Fail 分类、响应耗时。"""
 from __future__ import annotations
 
+try:
+    from case_executor import is_handoff_reply_text
+except ImportError:
+    def is_handoff_reply_text(text: str) -> bool:
+        blob = (text or "").lower()
+        return "human agent" in blob or "人工" in blob
+
 INTENT_TASK_ALLOW = {
     "产品信息": {"QA_ANSWER", "SALES_GUIDE", "PRODUCT_RESEARCH", "PRODUCT_RECOMMENDATION", "SUPPORT"},
     "活动规则": {"QA_ANSWER", "SUPPORT"},
@@ -41,16 +48,24 @@ def session_id_from(sess: dict) -> str:
 
 
 def is_handoff(sess: dict, conv: dict | None) -> bool:
-    tt = session_task_type(sess)
-    if tt == "HUMAN_HANDOFF":
-        return True
-    if conv:
-        st = conv.get("conversation_status") or conv.get("conversationStatus") or ""
-        if st in ("handoff", "external_handoff"):
-            return True
-        if conv.get("is_active_agent") == 0 or conv.get("isActiveAgent") == 0:
-            return True
-    return False
+    """是否已进入 Q07 LOCAL 转人工（Conversation 字段，非 outbound 文案）。"""
+    try:
+        from case_executor import verify_local_handoff
+    except ImportError:
+        verify_local_handoff = _legacy_is_handoff_conv
+    ok, _ = verify_local_handoff(conv)
+    return ok
+
+
+def _legacy_is_handoff_conv(conv: dict | None) -> tuple[bool, list[str]]:
+    if not conv:
+        return False, []
+    st = conv.get("conversation_status") or conv.get("conversationStatus") or ""
+    if st in ("handoff", "external_handoff"):
+        return True, []
+    if conv.get("is_active_agent") == 0 or conv.get("isActiveAgent") == 0:
+        return True, []
+    return False, []
 
 
 def facts_match(texts: list[str], facts: str) -> bool:
@@ -165,12 +180,17 @@ def eval_row_by_corpus(
     if corpus == "intent":
         if should_ho == "true" or action == "handoff":
             if not handoff:
-                notes.append(f"expected handoff; task_type={task_type}")
+                notes.append(f"expected LOCAL handoff; task_type={task_type}")
+                if texts and is_handoff_reply_text(texts[-1]):
+                    notes.append("only handoff reply text, Conversation not LOCAL")
                 return "FAIL", notes, False
-            return "PASS", ["routing: handoff"], True
+            return "PASS", ["LOCAL handoff OK"], True
         if should_ho == "false":
             if handoff:
-                notes.append("unexpected handoff")
+                notes.append("unexpected LOCAL handoff")
+                return "FAIL", notes, False
+            if texts and is_handoff_reply_text(texts[-1]):
+                notes.append("handoff template reply but should auto-reply FAQ")
                 return "FAIL", notes, False
         if intent and task_type:
             routing_pass = _routing_ok(intent, task_type)
@@ -182,9 +202,12 @@ def eval_row_by_corpus(
     if corpus == "kb":
         if should_ho == "true":
             if not handoff:
-                notes.append(f"expected handoff; task_type={task_type}")
+                notes.append(f"expected LOCAL handoff; task_type={task_type}")
                 return "FAIL", notes, False
-            return "PASS", ["handoff OK"], True
+            return "PASS", ["LOCAL handoff OK"], True
+        if handoff:
+            notes.append("unexpected LOCAL handoff on kb reply case")
+            return "FAIL", notes, False
         if facts:
             if not texts:
                 notes.append("no outbound reply")
@@ -203,17 +226,24 @@ def eval_row_by_corpus(
     if corpus == "handoff":
         if should_ho == "true" or action == "handoff":
             if not handoff:
-                notes.append(f"expected handoff; task_type={task_type}")
+                notes.append(f"expected LOCAL handoff; task_type={task_type}")
+                if texts and is_handoff_reply_text(texts[-1]):
+                    notes.append("reply looks like handoff but Conversation not LOCAL")
                 return "FAIL", notes, False
-            return "PASS", ["handoff OK"], True
+            return "PASS", ["LOCAL handoff OK"], True
         if should_ho == "false":
             if handoff:
-                notes.append("unexpected handoff")
+                notes.append("unexpected LOCAL handoff")
                 return "FAIL", notes, False
             return "PASS", ["no handoff OK"], True
-        # conditional：转人工或机器人有 outbound 均接受（Q07 LOCAL 路径）
-        if handoff or texts:
-            return "PASS", ["conditional: handoff or reply"], handoff
+        # conditional：LOCAL 转人工，或机器人 FAQ 回复（且未进入 handoff 状态）
+        if handoff:
+            return "PASS", ["conditional: LOCAL handoff"], True
+        if texts and not is_handoff_reply_text(texts[-1]):
+            return "PASS", ["conditional: FAQ reply"], True
+        if texts and is_handoff_reply_text(texts[-1]):
+            notes.append("handoff template only, not LOCAL assignment")
+            return "FAIL", notes, False
         notes.append("conditional: no handoff and no reply")
         return "FAIL", notes, False
 

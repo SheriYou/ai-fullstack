@@ -72,3 +72,24 @@ projects/<名>/
 ```
 
 清理范围：`projects/*/reports/runs/{run_id}/` 及根目录同 run 的 dated 副本；不删 `README.md`、`e2e-log.csv`、`*-latest.*` 等静态/指针文件。日志见 `.cleanup/logs/`。
+
+## 7. Git 与远程推送
+
+**原则**：`git push` 只传**代码、规格、语料、静态文档**；L1/L2/L3 **执行产出物不入库**。
+
+| 入库 ✓ | 不入库 ✗ |
+|--------|----------|
+| `scripts/`、`spec/`、`data/corpus-*.csv` | `reports/runs/` |
+| `reports/README.md`、审阅文档 | `test-run-*`、`test-results-*` |
+| `e2e-log.csv`（人工记录模板） | `latest-run.json`、`*-latest.csv` |
+| `blocking.md`、`checklist-*.md` | `full-test-run.log`、截图 |
+
+规则在框架根 **`.gitignore`**（`projects/*/reports/…` 通配，新项目自动生效）。
+
+```bash
+# 推送前确认无产出物被 staged
+git status
+git check-ignore -v projects/<名>/reports/runs/20260101-120000/test-report.md
+```
+
+若历史 commit 误含产出物，需 `git rm --cached` 后重新提交（勿删本地文件）。

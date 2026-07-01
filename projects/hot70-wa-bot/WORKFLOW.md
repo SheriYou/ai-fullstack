@@ -15,7 +15,9 @@
 ① SpecMiner     PRD + 后端/前端代码 → rules / trace / handoff-dual-path
 ② TestFactory   规则 → corpus-*.csv（分工见 corpus-strategy）
 ③ 人工 Review   运营确认 FAQ 口径
-④ RegressionRunner  python scripts/run_full_test.py（L2 全量 + 指标 + 门禁）
+④ RegressionRunner  python scripts/run_full_test.py
+   - **Formal 82 条**：按 `verify_profile` 逐条断言（`test_case_runner.py`）
+   - **L2 语料**：FAQ 批量回归（corpus-*.csv）
 ⑤ 人工 L3       checklist-smoke.md + checklist-m11-web-agent.md
 ⑥ ReportScribe  reports/runs/{run_id}/（md + docx + csv）
 ```

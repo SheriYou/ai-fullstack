@@ -10,7 +10,7 @@ REPORTS = ROOT / "reports"
 CASES = []
 
 
-def add(module, cid, title, ctype, pre, steps, inp, expected, layer, auto, pri, source, corpus_ref=""):
+def add(module, cid, title, ctype, pre, steps, inp, expected, layer, auto, pri, source, corpus_ref="", verify_profile=""):
     CASES.append({
         "id": cid,
         "module": module,
@@ -25,6 +25,7 @@ def add(module, cid, title, ctype, pre, steps, inp, expected, layer, auto, pri, 
         "priority": pri,
         "source": source,
         "corpus_ref": corpus_ref,
+        "verify_profile": verify_profile,
     })
 
 
@@ -405,7 +406,18 @@ for cid, title, pre, steps, inp, exp in L4:
 FIELDS = [
     "id", "module", "title", "type", "preconditions", "steps", "input",
     "expected_result", "layer", "automation", "priority", "source", "corpus_ref",
+    "verify_profile",
 ]
+
+
+def main():
+    from test_case_profile_map import PROFILES
+
+    for c in CASES:
+        c["verify_profile"] = PROFILES.get(c["id"], "exec:manual_only|manual:未配置profile")
+    write_csv(DATA / "test-cases-full.csv", CASES)
+    write_review_md(REPORTS / "test-cases-full-review.md")
+    print(f"system_cases={len(CASES)}")
 
 
 def write_csv(path, rows):
@@ -421,7 +433,7 @@ def write_review_md(path):
         "",
         f"> 共 **{len(CASES)}** 条结构化用例",
         "",
-        "字段说明：`title` 含验证点；`steps` / `expected_result` 可直接给测试人员执行。",
+        "字段说明：`title` 含验证点；`steps` / `expected_result` 可直接给测试人员执行；`verify_profile` 供脚本逐条断言。",
         "",
         "---",
         "",
@@ -437,6 +449,7 @@ def write_review_md(path):
             lines.append("")
             lines.append(f"- **前置**：{c['preconditions']}")
             lines.append(f"- **输入**：{c['input'] or '—'}")
+            lines.append(f"- **verify_profile**：`{c.get('verify_profile', '')}`")
             lines.append(f"- **步骤**：")
             for line in (c["steps"] or "").split("\n"):
                 lines.append(f"  {line}")
@@ -446,12 +459,6 @@ def write_review_md(path):
             lines.append(f"- **层/执行**：{c['layer']} / {c['automation']} / {c['priority']}")
             lines.append("")
     path.write_text("\n".join(lines), encoding="utf-8")
-
-
-def main():
-    write_csv(DATA / "test-cases-full.csv", CASES)
-    write_review_md(REPORTS / "test-cases-full-review.md")
-    print(f"system_cases={len(CASES)}")
 
 
 if __name__ == "__main__":

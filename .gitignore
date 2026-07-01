@@ -22,15 +22,41 @@ Thumbs.db
 # 清理状态与日志（本地）
 .cleanup/
 
-# 测试 run 产出物（L2/L3 执行生成，不入库）
-projects/hot70-wa-bot/reports/runs/
-projects/hot70-wa-bot/reports/latest-run.json
-projects/hot70-wa-bot/reports/full-test-run.log
-projects/hot70-wa-bot/reports/test-results-latest.csv
-projects/hot70-wa-bot/reports/test-results-corpus-latest.csv
-projects/hot70-wa-bot/reports/test-results-*.csv
-projects/hot70-wa-bot/reports/test-results-corpus-*.csv
-projects/hot70-wa-bot/reports/test-run-*.md
-projects/hot70-wa-bot/reports/test-run-*.docx
-projects/hot70-wa-bot/reports/test-run-summary-*.json
-projects/hot70-wa-bot/reports/feishu-auth-qrcode.png
+# =============================================================================
+# 测试执行产出物 — 所有 projects/* 通用（push 远程时只传代码，不传 run 结果）
+# 规则：reports/ 下静态文档可入库；L1/L2/L3 执行生成的报告/CSV/JSON 不入库
+# =============================================================================
+
+# run 归档目录（test-report、bug-registry、summary 等）
+projects/*/reports/runs/
+
+# 根目录 run 副本与指针
+projects/*/reports/latest-run.json
+projects/*/reports/full-test-run.log
+projects/*/reports/test-results-latest.csv
+projects/*/reports/test-results-corpus-latest.csv
+projects/*/reports/test-results-*.csv
+projects/*/reports/test-results-corpus-*.csv
+projects/*/reports/test-run-*.md
+projects/*/reports/test-run-*.docx
+projects/*/reports/test-run-summary-*.json
+
+# Agent 批量执行报告（RegressionRunner / ReportScribe 产出）
+projects/*/reports/offline-eval-*.md
+projects/*/reports/metrics-*.md
+
+# L3 临时截图/二维码等
+projects/*/reports/feishu-auth-qrcode.png
+projects/*/reports/*.png
+projects/*/reports/*.jpg
+!projects/*/reports/**/README.png
+
+# 本地执行日志
+projects/*/logs/
+projects/*/*.log
+
+# 静态参考文档仍入库（显式放行）
+!projects/*/reports/README.md
+!projects/*/reports/*-review*.md
+!projects/*/reports/corpus-review-for-ops.md
+!projects/*/reports/e2e-log.csv

@@ -32,5 +32,9 @@
 
 ## 脚本实现
 
+`scripts/case_executor.py` → 冒烟分会话、LOCAL handoff 字段断言、`user_message_from_input()`  
 `scripts/l2_eval_core.py` → `eval_row_by_corpus()`  
 `scripts/run_full_test.py` → 全量 L2
+
+**转人工 Pass 条件（Q07）**：`handoffTarget=LOCAL` 且 `conversationStatus=handoff` 且 `isActiveAgent=0`；仅有「human agent will continue」类 outbound **不算**转人工成功。
+
