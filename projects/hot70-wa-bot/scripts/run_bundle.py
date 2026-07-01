@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""单次测试产出物归档：reports/runs/{run_id}/"""
+"""单次测试产出物归档：reports/runs/{run_id}/（根目录不复制 dated 副本）。"""
 from __future__ import annotations
 
 import csv
 import json
-import shutil
+import sys
 from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORTS = ROOT / "reports"
 RUNS = REPORTS / "runs"
+FRAMEWORK_LIB = Path(__file__).resolve().parents[3] / "lib"
+if str(FRAMEWORK_LIB) not in sys.path:
+    sys.path.insert(0, str(FRAMEWORK_LIB))
+
+from run_paths import purge_root_run_artifacts, write_latest_pointer  # noqa: E402
 
 # 归档目录内固定文件名（run_id 已在父目录名中）
 ARTIFACT_NAMES = {
@@ -79,29 +84,8 @@ def write_manifest(
 
 
 def update_latest_pointer(run_id: str, paths: dict[str, Path]) -> None:
-    """根目录保留 -latest 副本，兼容现有脚本。"""
-    REPORTS.mkdir(parents=True, exist_ok=True)
-    mapping = {
-        REPORTS / "test-results-latest.csv": paths["test_results"],
-        REPORTS / "test-results-corpus-latest.csv": paths["corpus_results"],
-    }
-    for dst, src in mapping.items():
-        if src.exists():
-            try:
-                shutil.copy2(src, dst)
-            except OSError as e:
-                print(f"warn: could not update {dst.name}: {e}", flush=True)
-
-    pointer = {
-        "run_id": run_id,
-        "dir": str(run_dir(run_id).relative_to(ROOT)).replace("\\", "/"),
-        "report_md": ARTIFACT_NAMES["report_md"],
-        "report_docx": ARTIFACT_NAMES["report_docx"],
-        "updated_at": datetime.now().isoformat(timespec="seconds"),
-    }
-    (REPORTS / "latest-run.json").write_text(
-        json.dumps(pointer, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    """更新 latest-run.json；产出物仅在 runs/{run_id}/。"""
+    write_latest_pointer(REPORTS, run_id, project_root=ROOT)
 
 
 def finalize_run_bundle(
@@ -125,11 +109,9 @@ def finalize_run_bundle(
     d = run_dir(run_id)
     d.mkdir(parents=True, exist_ok=True)
 
-    # Markdown 报告
     md_path = paths["report_md"]
     md_path.write_text(report_md_text, encoding="utf-8")
 
-    # 结构化 CSV
     with paths["test_results"].open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=structured_fields)
         w.writeheader()
@@ -147,7 +129,7 @@ def finalize_run_bundle(
             w.writerows(bug_rows)
         if summary.get("bugs"):
             paths["bugs_json"].write_text(
-                __import__("json").dumps(summary["bugs"], ensure_ascii=False, indent=2),
+                json.dumps(summary["bugs"], ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
 
@@ -157,44 +139,42 @@ def finalize_run_bundle(
             w.writeheader()
             w.writerows(bug_mapping_rows)
 
-    # JSON 汇总
     summary = dict(summary)
     summary["run_id"] = run_id
     summary["bundle_dir"] = str(d.relative_to(ROOT)).replace("\\", "/")
     summary["report_md"] = str(md_path.relative_to(ROOT)).replace("\\", "/")
+    summary["report_docx"] = str(paths["report_docx"].relative_to(ROOT)).replace("\\", "/")
     paths["summary"].write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    # Word
     md_to_docx(md_path, paths["report_docx"])
 
     write_manifest(run_id, executed_at, paths, extra={"summary": summary})
     update_latest_pointer(run_id, paths)
 
-    # 根目录保留带 run_id 的副本，便于按文件名搜索
-    legacy = {
-        REPORTS / f"test-run-{run_id}.md": md_path,
-        REPORTS / f"test-run-summary-{run_id}.json": paths["summary"],
-        REPORTS / f"test-results-{run_id}.csv": paths["test_results"],
-        REPORTS / f"test-results-corpus-{run_id}.csv": paths["corpus_results"],
-        REPORTS / f"test-run-{run_id}.docx": paths["report_docx"],
-    }
-    for dst, src in legacy.items():
-        shutil.copy2(src, dst)
+    removed = purge_root_run_artifacts(REPORTS)
+    if removed:
+        print(f"purged {len(removed)} root artifact(s); see runs/{run_id}/", flush=True)
 
     return paths
 
 
 def bundle_existing_run(run_id: str) -> Path | None:
-    """将根目录已有产出物迁入 runs/{run_id}/ 并补 Word。"""
+    """将根目录遗留产出物迁入 runs/{run_id}/（兼容旧布局）。"""
     from report_docx import md_to_docx
+
+    paths = artifact_paths(run_id)
+    d = run_dir(run_id)
+    if paths["report_md"].exists():
+        update_latest_pointer(run_id, paths)
+        purge_root_run_artifacts(REPORTS)
+        return d
 
     md_legacy = REPORTS / f"test-run-{run_id}.md"
     if not md_legacy.exists():
         return None
 
-    paths = artifact_paths(run_id)
-    d = run_dir(run_id)
     d.mkdir(parents=True, exist_ok=True)
+    import shutil
 
     shutil.copy2(md_legacy, paths["report_md"])
 
@@ -222,9 +202,5 @@ def bundle_existing_run(run_id: str) -> Path | None:
 
     write_manifest(run_id, executed_at, paths, extra={"summary": summary_data} if summary_data else None)
     update_latest_pointer(run_id, paths)
-
-    legacy_docx = REPORTS / f"test-run-{run_id}.docx"
-    if paths["report_docx"].exists():
-        shutil.copy2(paths["report_docx"], legacy_docx)
-
+    purge_root_run_artifacts(REPORTS)
     return d

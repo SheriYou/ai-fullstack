@@ -177,9 +177,14 @@ def run_corpus_sample(client: Client, channel: str, bl: int, wait: float, limit:
 
 
 def write_report(smoke: list, corpus: list, meta: dict):
+    """轻量报告写入 runs/{run_id}/suite-report.md（不在 reports 根目录落盘）。"""
+    from run_bundle import run_dir
+
     REPORTS.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-    out = REPORTS / f"test-run-{ts}.md"
+    run_d = run_dir(ts)
+    run_d.mkdir(parents=True, exist_ok=True)
+    out = run_d / "suite-report.md"
     sp = sum(1 for r in smoke if r["status"] == "PASS")
     sf = sum(1 for r in smoke if r["status"] == "FAIL")
     cp = sum(1 for r in corpus if r["status"] == "PASS")

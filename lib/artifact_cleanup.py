@@ -6,9 +6,21 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import sys
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
+
+FRAMEWORK_LIB = Path(__file__).resolve().parent
+if str(FRAMEWORK_LIB) not in sys.path:
+    sys.path.insert(0, str(FRAMEWORK_LIB))
+
+from run_paths import (  # noqa: E402
+    list_run_dirs,
+    parse_run_id,
+    purge_root_run_artifacts,
+    write_latest_pointer,
+)
 
 RUN_ID_RE = re.compile(r"^(\d{8})-(\d{6})$")
 
@@ -19,17 +31,17 @@ PROTECTED_REPORT_FILES = frozenset({
     "test-cases-full-review.md",
     "corpus-review-for-ops.md",
     "latest-run.json",
-    "test-results-latest.csv",
-    "test-results-corpus-latest.csv",
 })
 
-# 带 run_id 的根目录副本 glob（不含 -latest）
+# 带 run_id 的根目录副本 glob（兼容旧布局，清理时删除）
 LEGACY_GLOBS = (
     "test-run-*.md",
     "test-run-*.docx",
     "test-results-*.csv",
     "test-results-corpus-*.csv",
     "test-run-summary-*.json",
+    "test-results-latest.csv",
+    "test-results-corpus-latest.csv",
 )
 
 # 其他可过期报告
@@ -46,37 +58,9 @@ class CleanupResult:
     errors: list[str] = field(default_factory=list)
 
 
-def parse_run_id(run_id: str) -> datetime | None:
-    m = RUN_ID_RE.match(run_id.strip())
-    if not m:
-        return None
-    try:
-        return datetime.strptime(f"{m.group(1)}{m.group(2)}", "%Y%m%d%H%M%S")
-    except ValueError:
-        return None
-
-
 def extract_run_id_from_name(name: str) -> str | None:
-    for part in Path(name).stem.split("-"):
-        pass
-    # test-run-20260630-135252 -> 20260630-135252
     m = re.search(r"(\d{8}-\d{6})", name)
     return m.group(1) if m else None
-
-
-def list_run_dirs(reports_dir: Path) -> list[tuple[str, datetime, Path]]:
-    runs_root = reports_dir / "runs"
-    if not runs_root.is_dir():
-        return []
-    out: list[tuple[str, datetime, Path]] = []
-    for p in runs_root.iterdir():
-        if not p.is_dir():
-            continue
-        dt = parse_run_id(p.name)
-        if dt:
-            out.append((p.name, dt, p))
-    out.sort(key=lambda x: x[1], reverse=True)
-    return out
 
 
 def _unlink_or_rmtree(path: Path, deleted: list[str], errors: list[str]) -> None:
@@ -122,25 +106,15 @@ def cleanup_project_reports(
         else:
             _unlink_or_rmtree(run_path, result.deleted_paths, result.errors)
 
-    # 根目录带 run_id 的副本
-    for pattern in LEGACY_GLOBS:
-        for path in reports_dir.glob(pattern):
-            if path.name in PROTECTED_REPORT_FILES:
-                continue
-            if path.name.endswith("-latest.csv"):
-                continue
-            run_id = extract_run_id_from_name(path.name)
-            if not run_id:
-                continue
-            if run_id in keep_ids:
-                continue
-            run_dt = parse_run_id(run_id)
-            if run_dt and run_dt >= cutoff:
-                continue
-            if dry_run:
-                result.deleted_paths.append(str(path) + " [dry-run]")
-            else:
-                _unlink_or_rmtree(path, result.deleted_paths, result.errors)
+    # 根目录遗留副本（旧版框架会在 reports/ 根目录复制 dated 文件）
+    if dry_run:
+        for pattern in LEGACY_GLOBS:
+            for path in reports_dir.glob(pattern):
+                if path.name not in PROTECTED_REPORT_FILES:
+                    result.deleted_paths.append(str(path) + " [dry-run]")
+    else:
+        for path_str in purge_root_run_artifacts(reports_dir):
+            result.deleted_paths.append(path_str)
 
     for pattern in OTHER_GLOBS:
         for path in reports_dir.glob(pattern):
@@ -161,7 +135,7 @@ def cleanup_project_reports(
 
 
 def _refresh_latest_pointer(reports_dir: Path, result: CleanupResult) -> None:
-    """清理后更新 latest-run.json 与 -latest 副本。"""
+    """清理后更新 latest-run.json（不再复制 -latest CSV）。"""
     runs = list_run_dirs(reports_dir)
     if not runs:
         pointer = reports_dir / "latest-run.json"
@@ -172,32 +146,11 @@ def _refresh_latest_pointer(reports_dir: Path, result: CleanupResult) -> None:
                 result.errors.append(f"{pointer}: {e}")
         return
 
-    run_id, _, run_path = runs[0]
-    pointer = {
-        "run_id": run_id,
-        "dir": str((reports_dir / "runs" / run_id).relative_to(reports_dir.parent)).replace("\\", "/"),
-        "report_md": "test-report.md",
-        "report_docx": "test-report.docx",
-        "updated_at": datetime.now().isoformat(timespec="seconds"),
-        "note": "refreshed by artifact cleanup",
-    }
+    run_id = runs[0][0]
     try:
-        (reports_dir / "latest-run.json").write_text(
-            json.dumps(pointer, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        write_latest_pointer(reports_dir, run_id, project_root=reports_dir.parent)
     except OSError as e:
         result.errors.append(f"latest-run.json: {e}")
-
-    mapping = {
-        reports_dir / "test-results-latest.csv": run_path / "test-results.csv",
-        reports_dir / "test-results-corpus-latest.csv": run_path / "test-results-corpus.csv",
-    }
-    for dst, src in mapping.items():
-        if src.exists():
-            try:
-                shutil.copy2(src, dst)
-            except OSError as e:
-                result.errors.append(f"copy {dst.name}: {e}")
 
 
 def cleanup_all_projects(

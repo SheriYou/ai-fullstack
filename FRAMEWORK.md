@@ -71,7 +71,7 @@ projects/<名>/
 .\scripts\schedule_daily_cleanup.ps1
 ```
 
-清理范围：`projects/*/reports/runs/{run_id}/` 及根目录同 run 的 dated 副本；不删 `README.md`、`e2e-log.csv`、`*-latest.*` 等静态/指针文件。日志见 `.cleanup/logs/`。
+清理范围：`projects/*/reports/runs/{run_id}/`（过期删除）；根目录 `test-run-*` 等遗留副本会在每次执行或 cleanup 时清除。日志见 `.cleanup/logs/`。
 
 ## 7. Git 与远程推送
 
@@ -79,12 +79,11 @@ projects/<名>/
 
 | 入库 ✓ | 不入库 ✗ |
 |--------|----------|
-| `scripts/`、`spec/`、`data/corpus-*.csv` | `reports/runs/` |
-| `reports/README.md`、审阅文档 | `test-run-*`、`test-results-*` |
-| `e2e-log.csv`（人工记录模板） | `latest-run.json`、`*-latest.csv` |
-| `blocking.md`、`checklist-*.md` | `full-test-run.log`、截图 |
+| `scripts/`、`spec/`、`data/corpus-*.csv` | `reports/runs/` 全部内容 |
+| `reports/README.md`、审阅文档 | 根目录 `test-run-*`、`test-results-*`（已停止生成） |
+| `e2e-log.csv`（人工记录模板） | `latest-run.json`（本地指针，gitignore） |
 
-规则在框架根 **`.gitignore`**（`projects/*/reports/…` 通配，新项目自动生效）。
+执行产出物**仅**写入 `reports/runs/{run_id}/`；根目录不再复制 dated 文件。
 
 ```bash
 # 推送前确认无产出物被 staged

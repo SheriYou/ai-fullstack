@@ -22,6 +22,9 @@ from prd_acceptance_metrics import (  # noqa: E402
 from report_docx import md_to_docx  # noqa: E402
 from run_bundle import RUNS, artifact_paths, bundle_existing_run, update_latest_pointer, write_manifest  # noqa: E402
 
+sys.path.insert(0, str(ROOT.parents[1] / "lib"))
+from run_paths import resolve_latest_run  # noqa: E402
+
 
 def load_corpus_results(path: Path) -> list[dict]:
     rows = list(csv.DictReader(path.open(encoding="utf-8-sig")))
@@ -102,17 +105,10 @@ def patch_structured_csv(csv_path: Path, run_id: str, l4_notes: dict, metrics) -
 def _resolve_run(run_id: str | None) -> tuple[str, Path]:
     if run_id:
         return run_id, RUNS / run_id
-    pointer = REPORTS / "latest-run.json"
-    if pointer.exists():
-        data = json.loads(pointer.read_text(encoding="utf-8"))
-        rid = data.get("run_id", "")
-        if rid:
-            return rid, RUNS / rid
-    md_candidates = sorted(REPORTS.glob("test-run-*.md"), reverse=True)
-    if md_candidates:
-        rid = md_candidates[0].stem.replace("test-run-", "")
-        return rid, RUNS / rid
-    raise SystemExit("cannot resolve run_id; pass as argv[1]")
+    resolved = resolve_latest_run(REPORTS)
+    if resolved:
+        return resolved
+    raise SystemExit("cannot resolve run_id; pass as argv[1] or run a test first")
 
 
 def main():
@@ -120,12 +116,12 @@ def main():
     run_id, bundle_dir = _resolve_run(run_id_arg)
 
     paths = artifact_paths(run_id)
-    md_path = paths["report_md"] if paths["report_md"].exists() else REPORTS / f"test-run-{run_id}.md"
-    corpus_path = paths["corpus_results"] if paths["corpus_results"].exists() else REPORTS / f"test-results-corpus-{run_id}.csv"
+    md_path = paths["report_md"]
+    corpus_path = paths["corpus_results"]
 
     if not md_path.exists():
         bundle_existing_run(run_id)
-        md_path = paths["report_md"] if paths["report_md"].exists() else md_path
+        md_path = paths["report_md"]
 
     if not corpus_path.exists():
         print(f"missing corpus results for {run_id}", file=sys.stderr)
@@ -140,15 +136,12 @@ def main():
     patch_markdown(md_path, section)
     print(f"patched {md_path}")
 
-    for csv_name, csv_path in (
-        ("test-results", paths["test_results"] if paths["test_results"].exists() else REPORTS / f"test-results-{run_id}.csv"),
-        ("test-results-latest", REPORTS / "test-results-latest.csv"),
-    ):
-        if csv_path.exists():
-            patch_structured_csv(csv_path, run_id, l4_notes, metrics)
-            print(f"patched {csv_path}")
+    if paths["test_results"].exists():
+        metric_rows = list(metrics["prd_7_3"]) + list(metrics["plan_8"])
+        patch_structured_csv(paths["test_results"], run_id, l4_notes, metric_rows)
+        print(f"patched {paths['test_results']}")
 
-    summary_path = paths["summary"] if paths["summary"].exists() else REPORTS / f"test-run-summary-{run_id}.json"
+    summary_path = paths["summary"]
     summary: dict = {}
     if summary_path.exists():
         summary = json.loads(summary_path.read_text(encoding="utf-8"))
@@ -163,16 +156,9 @@ def main():
     if bundle_dir.exists() or paths["report_md"].exists():
         write_manifest(run_id, summary.get("executed_at", "") if summary_path.exists() else "", paths)
         update_latest_pointer(run_id, paths)
-        legacy_docx = REPORTS / f"test-run-{run_id}.docx"
-        if docx_path.exists():
-            import shutil
-            shutil.copy2(md_path, REPORTS / f"test-run-{run_id}.md")
-            shutil.copy2(docx_path, legacy_docx)
-            if paths["summary"].exists():
-                shutil.copy2(paths["summary"], REPORTS / f"test-run-summary-{run_id}.json")
 
     print("\nPRD §7.3 metrics:")
-    for m in metrics:
+    for m in metrics["prd_7_3"]:
         print(f"  {m.name}: {m.rate_display} ({m.verdict}) n={m.sample_n}")
 
 

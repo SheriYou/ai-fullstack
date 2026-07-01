@@ -6,20 +6,20 @@
 
 ```
 reports/
-├── latest-run.json              # 指向最新一轮
-├── test-results-latest.csv      # 最新结构化结果（副本）
-├── test-results-corpus-latest.csv
+├── latest-run.json              # 指向最新一轮（唯一根目录指针）
 └── runs/
     └── 20260630-135252/
-        ├── manifest.json        # 产出物清单
-        ├── test-report.md       # Markdown 报告
-        ├── test-report.docx     # Word 报告
-        ├── summary.json         # 机器可读汇总（含 prd_7_3）
-        ├── test-results.csv     # 82 条结构化用例
-        └── test-results-corpus.csv
+        ├── manifest.json
+        ├── test-report.md
+        ├── test-report.docx
+        ├── summary.json
+        ├── test-results.csv
+        ├── test-results-corpus.csv
+        ├── bug-registry.csv
+        └── bug-case-mapping.csv
 ```
 
-根目录仍保留 `test-run-{run_id}.*` 副本，便于按文件名搜索。
+> **不再**在 `reports/` 根目录生成 `test-run-*`、`test-results-*` 副本；过期 run 由 `daily_cleanup.py` 清理。
 
 > **Git**：上述 run 产出物与 `runs/` 目录**不入库**；仅 `README.md`、审阅文档、`e2e-log.csv` 等静态文件 push 远程。见框架根 `.gitignore` 与 `FRAMEWORK.md` §7。
 
