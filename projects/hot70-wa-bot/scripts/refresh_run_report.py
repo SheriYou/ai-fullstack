@@ -82,7 +82,7 @@ def main():
     corpus = _load_corpus_from_csv(bundle / "test-results-corpus.csv")
 
     meta = {
-        "base": "https://test-paas.transsion.com/whatsapp-bot-service/api",
+        "base": "https://uat-paas.transsion.com/whatsapp-bot-service/api",
         "channel": "ch_wa_01",
         "business_line_id": 1,
         "wait": 4.0,

@@ -15,7 +15,7 @@ from test_case_runner import run_smoke_formal_cases
 
 
 def main():
-    wait = 4.0
+    wait = 12.0
     channel = "ch_wa_01"
     bl = 1
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -26,6 +26,7 @@ def main():
         print("LOGIN FAILED", file=sys.stderr)
         sys.exit(1)
     print("LOGIN OK", flush=True)
+    print(f"API={DEFAULT_BASE}", flush=True)
 
     print("running smoke cases (TC-SMOKE-*)...", flush=True)
     formal = run_smoke_formal_cases(client, channel, bl, wait)
@@ -44,7 +45,7 @@ def main():
     print(f"bundle={summary.get('bundle_dir')}")
     print(f"report_md={md}")
     print(f"report_docx={summary.get('report_docx')}")
-    print(json.dumps(summary, ensure_ascii=False))
+    print(json.dumps(summary, ensure_ascii=True))
 
 
 if __name__ == "__main__":

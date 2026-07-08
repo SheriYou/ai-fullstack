@@ -4,8 +4,8 @@
 
 ## 测试环境（传音）
 
-- [ ] Web 工作台可访问：`https://test-paas.transsion.com/whatsapp-bot-web/`
-- [ ] 后端 API 可达：`https://test-paas.transsion.com/whatsapp-bot-service/api`
+- [ ] Web 工作台可访问：`https://uat-paas.transsion.com/whatsapp-bot-web/`
+- [ ] 后端 API 可达：`https://uat-paas.transsion.com/whatsapp-bot-service/api`
 - [ ] 测试账号可登录（admin / 坐席账号）
 - [ ] 机器人服务健康；`agentModeEnabled=1`
 - [ ] 记录 **businessLineId**、默认 **channelKey**

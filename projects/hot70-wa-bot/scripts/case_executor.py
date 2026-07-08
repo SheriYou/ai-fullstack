@@ -102,14 +102,15 @@ def poll_turn_state(
     *,
     wait_s: float,
     expect_handoff: bool = False,
+    require_outbound: bool = False,
 ) -> tuple[dict, list, dict | None, list[str]]:
-    """等待 Agent 处理完成；转人工用例轮询 Conversation 直至 LOCAL 或超时。"""
+    """等待 Agent 处理完成；FAQ 须 require_outbound=True 等到 outbound，不能仅凭 task_type 退出。"""
     deadline = time.time() + wait_s
     sess: dict = {}
     msgs: list = []
     conv = None
     texts: list[str] = []
-    interval = min(0.5, wait_s / 4) if wait_s else 0.5
+    interval = min(0.5, max(wait_s / 8, 0.25)) if wait_s else 0.5
 
     while time.time() < deadline:
         time.sleep(interval)
@@ -124,7 +125,10 @@ def poll_turn_state(
             ok, _ = verify_local_handoff(conv)
             if ok:
                 break
-        elif texts or (sess.get("session") or sess).get("task_type"):
+        elif require_outbound:
+            if texts:
+                break
+        elif texts:
             break
     else:
         sess = client.session(bl, wa)
@@ -135,6 +139,18 @@ def poll_turn_state(
         texts = outbound_texts(msgs)
 
     return sess, msgs, conv, texts
+
+
+def settle_outbound_count(client, bl: int, wa: str, settle_s: float = 2.5) -> int:
+    """转人工后等待 outbound 稳定，供 003b baseline 使用。"""
+    deadline = time.time() + settle_s
+    texts: list[str] = []
+    while time.time() < deadline:
+        time.sleep(min(0.5, settle_s / 4))
+        from run_test_suite import outbound_texts
+
+        texts = outbound_texts(client.messages(bl, wa))
+    return len(texts)
 
 
 def run_smoke_cases(client, channel: str, bl: int, wait: float) -> list[dict]:

@@ -8,7 +8,7 @@ import re
 import uuid
 from pathlib import Path
 
-from case_executor import poll_turn_state, user_message_from_input
+from case_executor import poll_turn_state, settle_outbound_count, user_message_from_input
 from l2_eval_core import first_response_ms, session_id_from
 from run_test_suite import find_conversation, outbound_texts
 from test_case_verify import CaseContext, run_checks, summarize_checks
@@ -92,16 +92,22 @@ def execute_case(client, channel: str, bl: int, wait: float, case: dict) -> dict
             if not wa_h:
                 wa_h = f"tc-{uuid.uuid4().hex[:8]}@s.whatsapp.net"
                 client.webhook(channel, wa_h, "转人工")
-                sess, msgs, conv, texts = poll_turn_state(client, bl, wa_h, wait_s=max(wait, 4.0), expect_handoff=True)
+                sess, msgs, conv, texts = poll_turn_state(
+                    client, bl, wa_h, wait_s=max(wait, 12.0), expect_handoff=True,
+                )
                 _shared["handoff_wa"] = wa_h
-                _shared["handoff_outbound_before"] = len(texts)
+                _shared["handoff_outbound_before"] = settle_outbound_count(client, bl, wa_h, settle_s=3.0)
             ctx.whatsapp_id = wa_h
             before = _shared.get("handoff_outbound_before", 0)
             followups = profile.get("messages") or ["在吗", "还有人吗"]
             ctx.extra["outbound_before"] = _shared.get("handoff_outbound_before", 0)
             for fu in followups:
                 client.webhook(channel, wa_h, fu)
-                poll_turn_state(client, bl, wa_h, wait_s=wait, expect_handoff=False)
+                poll_turn_state(
+                    client, bl, wa_h, wait_s=wait, expect_handoff=False, require_outbound=False,
+                )
+            import time
+            time.sleep(2.0)
             ctx.messages = client.messages(bl, wa_h)
             ctx.outbound_texts = outbound_texts(ctx.messages)
             ctx.conversation = find_conversation(client.conversations(bl), wa_h)
@@ -133,9 +139,11 @@ def execute_case(client, channel: str, bl: int, wait: float, case: dict) -> dict
                 st, wh = client.webhook(channel, wa, text)
                 ctx.webhook_status = st
                 ctx.webhook_ok = st == 200 and (wh.get("data") or {}).get("status") == "success"
-                poll_turn_state(client, bl, wa, wait_s=wait, expect_handoff=False)
-                ctx.session = client.session(bl, wa)
-                sids.append(session_id_from(ctx.session))
+                sess_step, msgs_step, conv_step, _ = poll_turn_state(
+                    client, bl, wa, wait_s=wait, expect_handoff=False, require_outbound=True,
+                )
+                ctx.session = sess_step
+                sids.append(session_id_from(sess_step, msgs_step, conv_step))
             ctx.messages = client.messages(bl, wa)
             ctx.outbound_texts = outbound_texts(ctx.messages)
             ctx.conversation = find_conversation(client.conversations(bl), wa)
@@ -160,13 +168,16 @@ def execute_case(client, channel: str, bl: int, wait: float, case: dict) -> dict
             if text == "转人工":
                 expect_ho = True
             sess, msgs, conv, texts = poll_turn_state(
-                client, bl, wa, wait_s=max(wait, 4.0) if expect_ho else wait, expect_handoff=expect_ho,
+                client, bl, wa,
+                wait_s=max(wait, 12.0) if expect_ho else max(wait, 12.0),
+                expect_handoff=expect_ho,
+                require_outbound=not expect_ho,
             )
             ctx.session, ctx.messages, ctx.conversation, ctx.outbound_texts = sess, msgs, conv, texts
             ctx.response_ms = first_response_ms(msgs, fallback_wait_ms=wait * 1000)
             if cid == "TC-SMOKE-003-LOCAL":
                 _shared["handoff_wa"] = wa
-                _shared["handoff_outbound_before"] = len(texts)
+                _shared["handoff_outbound_before"] = settle_outbound_count(client, bl, wa, settle_s=3.0)
 
         elif exec_type in ("blocked", "defer_ext", "metrics", "manual_only"):
             pass
@@ -194,7 +205,7 @@ def execute_case(client, channel: str, bl: int, wait: float, case: dict) -> dict
     return _result(
         case, est, auto if est == "EXECUTED" else "NA", biz, notes,
         whatsapp_id=ctx.whatsapp_id,
-        session_id=session_id_from(ctx.session),
+        session_id=session_id_from(ctx.session, ctx.messages, ctx.conversation),
         response_ms=int(ctx.response_ms) if ctx.response_ms else "",
         outbound_preview=ctx.outbound_texts[-1][:120] if ctx.outbound_texts else "",
         checks=[{"check": r.check, "pass": r.passed, "note": r.note, "manual": r.manual} for r in check_results],
@@ -232,6 +243,7 @@ def run_smoke_formal_cases(client, channel: str, bl: int, wait: float) -> list[d
     """仅执行 TC-SMOKE-*（verify_profile），保持 003-LOCAL → 003b 会话顺序。"""
     global _shared
     _shared = {}
+    wait = max(wait, 12.0)
     results = []
     cases = [c for c in load_cases() if str(c.get("id", "")).startswith("TC-SMOKE")]
     for case in cases:

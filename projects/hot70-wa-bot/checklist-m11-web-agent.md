@@ -2,7 +2,7 @@
 
 > **Q07 ✅ LOCAL** | 前端：`whatsapp-bot-frontend` | API：`spec/api-notes.md`
 
-Web 工作台：`https://test-paas.transsion.com/whatsapp-bot-web/`
+Web 工作台：`https://uat-paas.transsion.com/whatsapp-bot-web/`
 
 ## G2 必过（与 TC-SMOKE-003/004 对应）
 

@@ -7,7 +7,7 @@
 | 框架说明 | `../../FRAMEWORK.md` |
 | 后端实现 | `../../../whatsapp-bot-service` |
 | 前端 Web 坐席 | `../../../whatsapp-bot-frontend` |
-| 测试环境 Web | https://test-paas.transsion.com/whatsapp-bot-web/ |
+| UAT 环境 Web | https://uat-paas.transsion.com/whatsapp-bot-web/ |
 
 ## 当前阶段
 

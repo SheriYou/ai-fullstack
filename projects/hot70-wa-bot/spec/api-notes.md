@@ -6,16 +6,16 @@
 
 | 项 | 值 |
 |----|-----|
-| Web 工作台 | `https://test-paas.transsion.com/whatsapp-bot-web/` |
-| 后端 API 前缀 | `https://test-paas.transsion.com/whatsapp-bot-service/api` |
+| Web 工作台 | `https://uat-paas.transsion.com/whatsapp-bot-web/` |
+| 后端 API 前缀 | `https://uat-paas.transsion.com/whatsapp-bot-service/api` |
 | 登录 | `POST /api/auth/login` → Cookie `WA_SESSION` |
 
 ## 入站消息（L1 / L2 模拟用户）
 
 | 用途 | 方法 | 路径 |
 |------|------|------|
-| 入站（**test-paas 可用**） | POST | `/api/webhook/{channelKey}` |
-| 入站（代码新版，test-paas 404） | POST | `/api/webhook/channels/{channelKey}/messages` |
+| 入站（**UAT 可用**） | POST | `/api/webhook/{channelKey}` |
+| 入站（代码新版，UAT 可能 404） | POST | `/api/webhook/channels/{channelKey}/messages` |
 
 **LocalGateway 请求体**（`ch_wa_01` 默认渠道）：
 

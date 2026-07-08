@@ -91,7 +91,7 @@ def run_check(name: str, ctx: CaseContext) -> CheckResult:
 
     if name == "task_type":
         tt = session_task_type(ctx.session)
-        ok = bool(tt)
+        ok = bool(tt) and tt.upper() != "UNKNOWN"
         return CheckResult(name, ok, f"task_type={tt}")
 
     if name == "price_keywords":
@@ -133,9 +133,14 @@ def run_check(name: str, ctx: CaseContext) -> CheckResult:
 
     if name == "no_bot_outbound":
         before = ctx.extra.get("outbound_before", 0)
-        new = len(ctx.outbound_texts) - before
-        ok = new <= 0
-        return CheckResult(name, ok, f"new_outbound={new}")
+        new_texts = ctx.outbound_texts[before:]
+        # Q02：转人工后不得再发 FAQ/寒暄类 bot 回复；转人工提示语不计入
+        faq_replies = [t for t in new_texts if not is_handoff_reply_text(t)]
+        ok = len(faq_replies) <= 0
+        return CheckResult(
+            name, ok,
+            f"new_faq_outbound={len(faq_replies)}; new_total={len(new_texts)}",
+        )
 
     if name == "session_stable":
         sid = ctx.extra.get("session_ids") or []
@@ -185,7 +190,7 @@ def run_check(name: str, ctx: CaseContext) -> CheckResult:
         return CheckResult(name, ok, "webhook accepted long input")
 
     if name == "session_traceable":
-        sid = session_id_from(ctx.session)
+        sid = session_id_from(ctx.session, ctx.messages, ctx.conversation)
         ok = bool(sid) and len(ctx.messages) >= 1
         return CheckResult(name, ok, f"session_id={sid}; msgs={len(ctx.messages)}")
 

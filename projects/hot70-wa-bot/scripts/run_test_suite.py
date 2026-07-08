@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REPORTS = ROOT / "reports"
 DATA = ROOT / "data"
 
-DEFAULT_BASE = "https://test-paas.transsion.com/whatsapp-bot-service/api"
+DEFAULT_BASE = "https://uat-paas.transsion.com/whatsapp-bot-service/api"
 DEFAULT_USER = "admin"
 DEFAULT_PASS = "admin123456"
 

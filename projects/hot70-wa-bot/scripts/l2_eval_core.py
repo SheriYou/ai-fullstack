@@ -40,11 +40,25 @@ def session_task_type(sess: dict) -> str:
     return (inner.get("task_type") or inner.get("taskType") or "").strip()
 
 
-def session_id_from(sess: dict) -> str:
-    if not sess:
-        return ""
-    inner = sess.get("session") or sess
-    return (inner.get("session_id") or inner.get("sessionId") or "").strip()
+def session_id_from(sess: dict, msgs: list | None = None, conv: dict | None = None) -> str:
+    if sess:
+        inner = sess.get("session") or sess
+        sid = (inner.get("session_id") or inner.get("sessionId") or "").strip()
+        if sid:
+            return sid
+        sid = (sess.get("session_id") or sess.get("sessionId") or "").strip()
+        if sid:
+            return sid
+    if conv:
+        sid = (conv.get("session_id") or conv.get("sessionId") or "").strip()
+        if sid:
+            return sid
+    if msgs:
+        for m in reversed(msgs):
+            sid = (m.get("session_id") or m.get("sessionId") or "").strip()
+            if sid:
+                return sid
+    return ""
 
 
 def is_handoff(sess: dict, conv: dict | None) -> bool:
