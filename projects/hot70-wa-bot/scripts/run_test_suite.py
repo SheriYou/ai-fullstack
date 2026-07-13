@@ -13,6 +13,8 @@ from datetime import datetime
 from pathlib import Path
 from urllib import error, request
 
+from l2_eval_core import session_customer_tag
+
 ROOT = Path(__file__).resolve().parents[1]
 REPORTS = ROOT / "reports"
 DATA = ROOT / "data"
@@ -53,9 +55,12 @@ class Client:
         status, data = self._call("POST", "/auth/login", {"username": user, "password": password})
         return status == 200 and data.get("success") is not False
 
-    def webhook(self, channel: str, whatsapp_id: str, text: str) -> tuple[int, dict]:
+    def webhook(
+        self, channel: str, whatsapp_id: str, text: str, sender_name: str = "WhatsApp User"
+    ) -> tuple[int, dict]:
         payload = {
             "whatsapp_id": whatsapp_id,
+            "sender_name": sender_name,
             "content": text,
             "message_id": f"test-{uuid.uuid4().hex[:12]}",
             "direction": "inbound",
@@ -158,9 +163,10 @@ def run_corpus_sample(client: Client, channel: str, bl: int, wait: float, limit:
         if not text or text.startswith("("):
             results.append({"id": row.get("id"), "status": "SKIP", "reason": "non-simulatable"})
             continue
-        st, wh = client.webhook(channel, wa, text)
+        st, wh = client.webhook(channel, wa, text, sender_name=row.get("id", "WhatsApp User"))
         time.sleep(wait)
         sess = client.session(bl, wa)
+        conv = find_conversation(client.conversations(bl), wa)
         session_obj = sess.get("session") or sess
         ok = st == 200 and (wh.get("data") or {}).get("status") == "success"
         results.append({
@@ -171,6 +177,7 @@ def run_corpus_sample(client: Client, channel: str, bl: int, wait: float, limit:
             "session_id": (session_obj.get("session_id") or session_obj.get("sessionId") or ""),
             "expected_intent": row.get("expected_intent"),
             "task_type": session_obj.get("task_type"),
+            "customer_tag": session_customer_tag(sess, conv),
             "webhook_http": st,
         })
     return results
@@ -219,10 +226,10 @@ def write_report(smoke: list, corpus: list, meta: dict):
         f"Pass={cp} Fail={cf} Skip={cs}（样本 {len(corpus)} 条，未做 task_type 映射断言）",
         "",
         "| ID | 结果 | 输入 | task_type |",
-        "|----|------|------|-----------|",
+        "|----|------|------|-----------|--------------|",
     ]
     for r in corpus:
-        lines.append(f"| {r.get('id','')} | {r['status']} | {str(r.get('input',''))[:40]} | {r.get('task_type','')} |")
+        lines.append(f"| {r.get('id','')} | {r['status']} | {str(r.get('input',''))[:40]} | {r.get('task_type','')} | {r.get('customer_tag','')} |")
     lines += [
         "",
         "## 说明",

@@ -23,6 +23,7 @@ from l2_eval_core import (  # noqa: E402
     is_handoff,
     session_id_from,
     session_task_type,
+    session_customer_tag,
 )
 from prd_acceptance_metrics import (  # noqa: E402
     compute_all_metrics,
@@ -100,6 +101,7 @@ def eval_corpus_row(client: Client, channel: str, bl: int, row: dict, wait: floa
         client, bl, wa, wait_s=poll_wait, expect_handoff=expect_handoff,
     )
     task_type = session_task_type(sess)
+    customer_tag = session_customer_tag(sess, conv)
     handoff = is_handoff(sess, conv)
     wh_ok = st == 200 and (wh.get("data") or {}).get("status") == "success"
     auto = "PASS" if wh_ok else "FAIL"
@@ -139,6 +141,7 @@ def eval_corpus_row(client: Client, channel: str, bl: int, row: dict, wait: floa
         "business_result": biz,
         "fail_class": fail_class,
         "task_type": task_type,
+        "customer_tag": customer_tag,
         "should_handoff": row.get("should_handoff", ""),
         "outbound_preview": texts[-1][:120] if texts else "",
         "notes": notes or ("OK" if biz == "PASS" else ""),
@@ -237,13 +240,13 @@ def write_reports(run_id: str, executed_at: str, formal: list, corpus: list, met
         "## L2 语料（业务 Fail 样例 Top30）",
         "",
         "| ID | corpus | 业务 | fail_class | task_type | notes |",
-        "|----|--------|------|------------|-----------|-------|",
+        "|----|--------|------|------------|-----------|--------------|-------|",
     ]
     if fails:
         for r in fails:
             lines.append(
                 f"| {r['id']} | {r.get('corpus','')} | {r.get('business_result','')} | "
-                f"{r.get('fail_class','')} | {r.get('task_type','')} | {str(r.get('notes',''))[:40]} |"
+                f"{r.get('fail_class','')} | {r.get('task_type','')} | {r.get('customer_tag','')} | {str(r.get('notes',''))[:40]} |"
             )
     else:
         lines.append("| — | — | — | — | — | 本轮未执行或无 Fail |")
@@ -342,7 +345,7 @@ def write_reports(run_id: str, executed_at: str, formal: list, corpus: list, met
         "run_id", "executed_at", "case_id", "corpus", "input",
         "whatsapp_id", "session_id", "response_ms", "routing_pass",
         "execution_status", "automation_result", "business_result", "fail_class", "bug_ids",
-        "task_type", "should_handoff", "notes",
+        "task_type", "customer_tag", "should_handoff", "notes",
     ]
     corpus_out = []
     for r in corpus:
@@ -362,6 +365,7 @@ def write_reports(run_id: str, executed_at: str, formal: list, corpus: list, met
             "fail_class": r.get("fail_class", ""),
             "bug_ids": ";".join(case_bugs.get(r["id"], [])),
             "task_type": r.get("task_type", ""),
+            "customer_tag": r.get("customer_tag", ""),
             "should_handoff": r.get("should_handoff", ""),
             "notes": r.get("notes", ""),
         })

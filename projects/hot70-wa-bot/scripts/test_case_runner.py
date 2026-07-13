@@ -91,7 +91,13 @@ def execute_case(client, channel: str, bl: int, wait: float, case: dict) -> dict
             wa_h = _shared.get("handoff_wa")
             if not wa_h:
                 wa_h = f"tc-{uuid.uuid4().hex[:8]}@s.whatsapp.net"
-                client.webhook(channel, wa_h, "转人工")
+                st, wh = client.webhook(channel, wa_h, "转人工", sender_name=cid)
+                ok = st == 200 and (wh.get("data") or {}).get("status") == "success"
+                if not ok:
+                    return _result(
+                        case, "EXECUTED", "FAIL", "FAIL",
+                        f"api_error:webhook_http={st}; phase=handoff_init",
+                    )
                 sess, msgs, conv, texts = poll_turn_state(
                     client, bl, wa_h, wait_s=max(wait, 12.0), expect_handoff=True,
                 )
@@ -102,7 +108,13 @@ def execute_case(client, channel: str, bl: int, wait: float, case: dict) -> dict
             followups = profile.get("messages") or ["在吗", "还有人吗"]
             ctx.extra["outbound_before"] = _shared.get("handoff_outbound_before", 0)
             for fu in followups:
-                client.webhook(channel, wa_h, fu)
+                st, wh = client.webhook(channel, wa_h, fu, sender_name=cid)
+                ok = st == 200 and (wh.get("data") or {}).get("status") == "success"
+                if not ok:
+                    return _result(
+                        case, "EXECUTED", "FAIL", "FAIL",
+                        f"api_error:webhook_http={st}; phase=handoff_followup",
+                    )
                 poll_turn_state(
                     client, bl, wa_h, wait_s=wait, expect_handoff=False, require_outbound=False,
                 )
@@ -136,9 +148,14 @@ def execute_case(client, channel: str, bl: int, wait: float, case: dict) -> dict
                 if text.startswith(">500") or "500" in text and "字" in (case.get("input") or ""):
                     text = _long_text(520)
                 ctx.t_send = __import__("time").perf_counter()
-                st, wh = client.webhook(channel, wa, text)
+                st, wh = client.webhook(channel, wa, text, sender_name=cid)
                 ctx.webhook_status = st
                 ctx.webhook_ok = st == 200 and (wh.get("data") or {}).get("status") == "success"
+                if not ctx.webhook_ok:
+                    return _result(
+                        case, "EXECUTED", "FAIL", "FAIL",
+                        f"api_error:webhook_http={st}; phase=webhook_multi; step={i+1}",
+                    )
                 sess_step, msgs_step, conv_step, _ = poll_turn_state(
                     client, bl, wa, wait_s=wait, expect_handoff=False, require_outbound=True,
                 )
@@ -159,9 +176,14 @@ def execute_case(client, channel: str, bl: int, wait: float, case: dict) -> dict
             if "500" in (case.get("input") or "") and "字" in (case.get("input") or ""):
                 text = _long_text(520)
             ctx.t_send = __import__("time").perf_counter()
-            st, wh = client.webhook(channel, wa, text)
+            st, wh = client.webhook(channel, wa, text, sender_name=cid)
             ctx.webhook_status = st
             ctx.webhook_ok = st == 200 and (wh.get("data") or {}).get("status") == "success"
+            if not ctx.webhook_ok:
+                return _result(
+                    case, "EXECUTED", "FAIL", "FAIL",
+                    f"api_error:webhook_http={st}; phase=webhook",
+                )
             expect_ho = "local_handoff" in checks or "handoff_required" in checks or cid in (
                 "TC-SMOKE-003-LOCAL", "TC-M5-LOCAL-001",
             )
@@ -186,7 +208,8 @@ def execute_case(client, channel: str, bl: int, wait: float, case: dict) -> dict
             return _result(case, "SKIP", "NA", "NA", f"unknown exec:{exec_type}")
 
     except Exception as e:
-        return _result(case, "EXECUTED", "FAIL", "FAIL", f"exception:{e}")
+        # Script/runtime error: stop the whole run immediately.
+        raise RuntimeError(f"script_error case={cid}: {e}") from e
 
     check_results = run_checks(checks, ctx)
     from test_case_verify import CheckResult

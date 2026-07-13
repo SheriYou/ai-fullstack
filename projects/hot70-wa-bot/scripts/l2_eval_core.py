@@ -32,6 +32,19 @@ KB_CATEGORY_TO_INTENT = {
     "HANDOFF": "人工兜底",
 }
 
+ALLOWED_CUSTOMER_TAGS = {
+    "已预定未提机",
+    "未预定高意向",
+    "未预定低意向",
+    "已提交",
+}
+CUSTOMER_TAG_ALIASES = {
+    "已提机": "已提交",
+    "已提货": "已提交",
+    "已取机": "已提交",
+    "already_picked_up": "已提交",
+    "picked_up": "已提交",
+}
 
 def session_task_type(sess: dict) -> str:
     if not sess:
@@ -39,6 +52,58 @@ def session_task_type(sess: dict) -> str:
     inner = sess.get("session") or sess
     return (inner.get("task_type") or inner.get("taskType") or "").strip()
 
+
+
+
+def normalize_customer_tag(value: str) -> str:
+    raw = (value or "").strip()
+    if not raw:
+        return ""
+    if raw in ALLOWED_CUSTOMER_TAGS:
+        return raw
+    return CUSTOMER_TAG_ALIASES.get(raw, "")
+
+
+def session_customer_tag(sess: dict, conv: dict | None = None) -> str:
+    """Return normalized customer tag from session/conversation payload."""
+    if conv:
+        tags = conv.get("tags")
+        if isinstance(tags, list):
+            for t in tags:
+                tag = normalize_customer_tag(t if isinstance(t, str) else "")
+                if tag:
+                    return tag
+
+    candidates = []
+    if sess:
+        inner = sess.get("session") or sess
+        candidates.extend([
+            inner.get("customer_tag"),
+            inner.get("customerTag"),
+            inner.get("intent_tag"),
+            inner.get("intentTag"),
+            inner.get("user_tag"),
+            inner.get("userTag"),
+        ])
+        candidates.extend([
+            sess.get("customer_tag"),
+            sess.get("customerTag"),
+            sess.get("intent_tag"),
+            sess.get("intentTag"),
+        ])
+    if conv:
+        candidates.extend([
+            conv.get("customer_tag"),
+            conv.get("customerTag"),
+            conv.get("intent_tag"),
+            conv.get("intentTag"),
+        ])
+
+    for c in candidates:
+        tag = normalize_customer_tag(c if isinstance(c, str) else "")
+        if tag:
+            return tag
+    return ""
 
 def session_id_from(sess: dict, msgs: list | None = None, conv: dict | None = None) -> str:
     if sess:
