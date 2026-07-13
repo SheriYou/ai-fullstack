@@ -10,6 +10,13 @@ __pycache__/
 .venv/
 venv/
 
+# Secrets / keys
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+credentials.json
+
 # 编辑器
 .vscode/
 .idea/
@@ -54,6 +61,12 @@ projects/*/reports/*.jpg
 # 本地执行日志
 projects/*/logs/
 projects/*/*.log
+
+# PRD下脚本生成产物（不入库）
+projects/*/prd/*.bak.csv
+projects/*/prd/*.runbackup-*.csv
+projects/*/prd/*Sheet1*.csv
+projects/*/prd/*指标测试*.csv
 
 # 静态参考文档仍入库（显式放行）
 !projects/*/reports/README.md
