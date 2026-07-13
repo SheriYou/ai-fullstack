@@ -1,0 +1,72 @@
+﻿case_id,name,source,expected_handoff,webhook_http,outbound_count,session_id,whatsapp_id,conversation_status,handoff_target,is_active_agent,result,note,reply_preview,question
+TC-H70-001-N,[HOT 70 Pro 商品信息] HOT70 Pro 5G有哪些配置？【标准问答场景】,HOT 70 Pro 商品信息,否,200,0,agent_a91fb8dd74e94452943fc4ecd2279f6b,newsess-2a5b4bd0e4@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,HOT70 Pro 5G有哪些配置？
+TC-H70-002-N,[活动规则] 预定HOT 70 Pro的活动怎么参加？【标准问答场景】,活动规则,否,200,0,agent_315d17777b78491bab8af102a2e5a1ca,newsess-be287fa068@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,预定HOT 70 Pro的活动怎么参加？
+TC-H70-003-N,[活动权益] 预订 HOT 70 Pro有什么福利？【标准问答场景】,活动权益,否,200,0,agent_5d86f627fe4e4a4cab5552c17a5ab796,newsess-7a0c03b5c6@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,预订 HOT 70 Pro有什么福利？
+TC-H70-004-N,[门店信息] 哪里可以买/提HOT 70 Pro？【标准问答场景】,门店信息,否,200,0,agent_2c36dc46d26146afad67d5bc4e8280f6,newsess-fdce3d4859@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,哪里可以买/提HOT 70 Pro？
+TC-H70-005-N,[官方身份说明] 这个 WhatsApp 号是正规的吗？【标准问答场景】,官方身份说明,否,200,0,agent_039c0ae6655548bea18fe3202608c982,newsess-b417c7fe49@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,这个 WhatsApp 号是正规的吗？
+TC-H70-006-N,[人工兜底规则] 预订失败了怎么办？【直接转人工场景】,人工兜底规则,是,200,0,agent_75e602324c214c9c8ab1377ce7f81c18,newsess-ffe4ad7874@s.whatsapp.net,open,,1,FAIL,无机器人outbound; handoffTarget=None; conversationStatus=open; isActiveAgent=1,,预订失败了怎么办？
+TC-H70-007-N,[HOT 70 Pro 商品信息] HOT70 Pro 5G有哪些颜色？【标准问答场景】,HOT 70 Pro 商品信息,否,200,0,agent_1773d45cdcb1480987a74433b70ba9dd,newsess-0bf53681ad@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,HOT70 Pro 5G有哪些颜色？
+TC-H70-008-N,[HOT 70 Pro 商品信息] HOT70 Pro 支持 5G 吗？【标准问答场景】,HOT 70 Pro 商品信息,否,200,0,agent_aa2299ac7c92410fbda252b2a149857b,newsess-df290b9720@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,HOT70 Pro 支持 5G 吗？
+TC-H70-009-N,[HOT 70 Pro 商品信息] HOT70 Pro 5G防水吗？【标准问答场景】,HOT 70 Pro 商品信息,否,200,0,agent_578d164f870948b98a0e6b56cd1b389d,newsess-cd5468f5d8@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,HOT70 Pro 5G防水吗？
+TC-H70-010-N,[活动规则] 预订后下一步做什么？【标准问答场景】,活动规则,否,200,0,agent_d6b8fda06d5b49dabc829de7507cf50d,newsess-c164019773@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,预订后下一步做什么？
+TC-H70-011-N,[活动权益] 支持分期付款吗？【标准问答场景】,活动权益,否,200,0,agent_704da8a26e4a4517bd2a904b98867a4f,newsess-601df8da37@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,支持分期付款吗？
+TC-H70-012-N,[提机规则] 提机需要带什么？【标准问答场景】,提机规则,否,200,0,agent_0e6c61f0cfad4154ba706a69867ee099,newsess-01b571655b@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,提机需要带什么？
+TC-H70-013-N,[提机规则] 可以换门店提机吗？【直接转人工场景】,提机规则,是,200,0,agent_6de548c65d8748b7a1995db79ff02b14,newsess-a80ca48d7e@s.whatsapp.net,open,,1,FAIL,无机器人outbound; handoffTarget=None; conversationStatus=open; isActiveAgent=1,,可以换门店提机吗？
+TC-H70-014-N,[门店信息] 我所在的城市有门店吗？【直接转人工场景】,门店信息,是,200,0,agent_4dd6d81a254b46a7b288b9fd5cdd9027,newsess-74ffe34dd3@s.whatsapp.net,open,,1,FAIL,无机器人outbound; handoffTarget=None; conversationStatus=open; isActiveAgent=1,,我所在的城市有门店吗？
+TC-H70-015-N,[官方身份说明] HOT 70 Pro是正品吗？有保修吗？【标准问答场景】,官方身份说明,否,200,0,agent_8e520ab05466470aa5fec66b13cebb24,newsess-3a43a21a0c@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,HOT 70 Pro是正品吗？有保修吗？
+TC-H70-016-N,[人工兜底规则] 我想取消预订【直接转人工场景】,人工兜底规则,是,200,0,agent_45aeec96259a416cb7c4851acacdd1fd,newsess-a597ba2098@s.whatsapp.net,open,,1,FAIL,无机器人outbound; handoffTarget=None; conversationStatus=open; isActiveAgent=1,,我想取消预订
+TC-H70-017-N,[人工兜底规则] 我要投诉/反馈问题【直接转人工场景】,人工兜底规则,是,200,0,agent_dacf3d09dd0c4c15ba31eb22fefd2270,newsess-e531654b78@s.whatsapp.net,open,,1,FAIL,无机器人outbound; handoffTarget=None; conversationStatus=open; isActiveAgent=1,,我要投诉/反馈问题
+TC-H70-018-N,[人工兜底规则] 到店后无法提机【直接转人工场景】,人工兜底规则,是,200,0,agent_1459b186e4fe46cabc399f2af9730098,newsess-266a1b93ab@s.whatsapp.net,open,,1,FAIL,无机器人outbound; handoffTarget=None; conversationStatus=open; isActiveAgent=1,,到店后无法提机
+TC-H70-019-N,[HOT 70 Pro 商品信息] HOT70 Pro 5G多少钱？【标准问答场景】,HOT 70 Pro 商品信息,否,200,0,agent_417820d5c2db41e08a59760363792a10,newsess-0f97104538@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,HOT70 Pro 5G多少钱？
+TC-H70-020-N,[活动规则] 订金在哪里付【标准问答场景】,活动规则,否,200,0,agent_692ab751ab1844cca5048b881ebc9bcb,newsess-6466cbeab3@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,订金在哪里付
+TC-H70-021-N,[提机规则] 提机时还要付多少钱？【标准问答场景】,提机规则,否,200,0,agent_1d6f75367cd84b4e8df12802369623c9,newsess-945df51d2b@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,提机时还要付多少钱？
+TC-H70-022-N,[活动规则] 如果只线上填了信息，算预订成功吗？【标准问答场景】,活动规则,否,200,0,agent_08962442af754b2686eecd15701e17a1,newsess-4ab39c570c@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,如果只线上填了信息，算预订成功吗？
+TC-H70-023-N,[活动规则] 订金线上能不能付？【标准问答场景】,活动规则,否,200,0,agent_b438c10ef70d467cb8330a60e614f6a7,newsess-d1d31908f4@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,订金线上能不能付？
+TC-H70-024-N,[活动规则] 可以预订几台？【标准问答场景】,活动规则,否,200,0,agent_54ba33dbe2264b33977d02353c099b1b,newsess-54bd617c45@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,可以预订几台？
+TC-H70-025-N,[HOT 70 Pro 商品信息] 选了某个颜色，门店能保证有吗？【标准问答场景】,HOT 70 Pro 商品信息,否,200,0,agent_f751cb3ae6b348f3a011c24884d008c1,newsess-e61541b878@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,选了某个颜色，门店能保证有吗？
+TC-H70-026-N,[活动权益] 到店具体是什么礼品【标准问答场景】,活动权益,否,200,0,agent_5940a26cd00f40d4be552395c64fa6aa,newsess-dc969eab19@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,到店具体是什么礼品
+TC-H70-027-N,[活动权益] Smart Watch 怎么领取？【标准问答场景】,活动权益,否,200,0,agent_0909553ce7f34682b01b59dbf76fd21e,newsess-31f47ff6be@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,Smart Watch 怎么领取？
+TC-H70-028-N,[活动权益] 为什么要激活才能拿赠品？【标准问答场景】,活动权益,否,200,0,agent_86291750b99745cf802f40d88c752a0e,newsess-db468169fc@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,为什么要激活才能拿赠品？
+TC-H70-029-N,[门店信息] IBP / IBO 门店是什么意思？【标准问答场景】,门店信息,否,200,0,agent_240aaf03f3ed4505be34586ca5a4e810,newsess-8b336d435f@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,IBP / IBO 门店是什么意思？
+TC-H70-030-N,[HOT 70 Pro 商品信息] HOT 70 Pro 的 RAM 和存储是多少？【标准问答场景】,HOT 70 Pro 商品信息,否,200,0,agent_1977088b940c40eb9a050de3fcab17c6,newsess-f366bf35c7@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,HOT 70 Pro 的 RAM 和存储是多少？
+TC-H70-031-N,[HOT 70 Pro 商品信息] HOT 70 Pro 屏幕多大？分辨率多少？【标准问答场景】,HOT 70 Pro 商品信息,否,200,0,agent_2cd6918aaaaf475188975d9ad97bb7e8,newsess-082d0e615e@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,HOT 70 Pro 屏幕多大？分辨率多少？
+TC-H70-032-N,[HOT 70 Pro 商品信息] 充电功率多大？充满要多久？【标准问答场景】,HOT 70 Pro 商品信息,否,200,0,agent_b621753c75fa429fa63a24c67403ed3d,newsess-b4dffd2553@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,充电功率多大？充满要多久？
+TC-H70-033-N,[HOT 70 Pro 商品信息] 出厂系统版本是什么？支持 Google 服务吗？【标准问答场景】,HOT 70 Pro 商品信息,否,200,0,agent_89923c0821e24fb6a39e204cf8a6d4a4,newsess-fd5002f4ce@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,出厂系统版本是什么？支持 Google 服务吗？
+TC-H70-034-N,[官方身份说明] 保修期多长？【标准问答场景】,官方身份说明,否,200,0,agent_36a6ac967fb745b19c809f89b04522c1,newsess-fe28343056@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,保修期多长？
+TC-H70-035-N,[门店信息] 售后服务中心在哪里？【直接转人工场景】,门店信息,是,200,0,agent_94313c9ad976498fb24655e55aa05d72,newsess-fc4be2cb2a@s.whatsapp.net,open,,1,FAIL,无机器人outbound; handoffTarget=None; conversationStatus=open; isActiveAgent=1,,售后服务中心在哪里？
+TC-H70-036-N,[官方身份说明] 手机出问题怎么办？【标准问答场景】,官方身份说明,否,200,0,agent_c439261c844a4b62ad3a3aea900743d5,newsess-fdccb6c6bb@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,手机出问题怎么办？
+TC-H70-037-N,[活动规则] 门店支持哪些付款方式？【标准问答场景】,活动规则,否,200,0,agent_f81d29b22aeb464ead3d0750b731d2dd,newsess-a36c1443e4@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,门店支持哪些付款方式？
+TC-H70-038-N,[HOT 70 Pro 商品信息] HOT 70 Pro 和其他 Infinix 手机有什么区别？【标准问答场景】,HOT 70 Pro 商品信息,否,200,0,agent_7061b1fd883049cfa50c3f6f74966df6,newsess-3b519003f9@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,HOT 70 Pro 和其他 Infinix 手机有什么区别？
+TC-H70-039-N,[活动规则] 预订后能修改手机号吗？【直接转人工场景】,活动规则,是,200,0,agent_5af12e84c7ae4900b1758df73bfe2f39,newsess-771057dc0a@s.whatsapp.net,open,,1,FAIL,无机器人outbound; handoffTarget=None; conversationStatus=open; isActiveAgent=1,,预订后能修改手机号吗？
+TC-H70-040-N,[活动规则] 怎么查我的预订状态？【直接转人工场景】,活动规则,是,200,0,agent_aaae848966b1412d8db89858aa7af851,newsess-3b40151f89@s.whatsapp.net,open,,1,FAIL,无机器人outbound; handoffTarget=None; conversationStatus=open; isActiveAgent=1,,怎么查我的预订状态？
+TC-H70-041-N,[门店信息] 门店营业时间是什么？【标准问答场景】,门店信息,否,200,0,agent_b88c894740314bedbefa5e841eda4740,newsess-ea124fea46@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,门店营业时间是什么？
+TC-H70-042-N,[提机规则] 什么时候可以提机？【待确认标准问答场景】,提机规则,否,200,0,agent_a667629e629f4803998ab6adf7a80177,newsess-82a1864703@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,什么时候可以提机？
+TC-H70-043-N,[活动权益] 到店有什么礼品？【待确认标准问答场景】,活动权益,否,200,0,agent_786e60a2ef6c4bc28f9ea57acb925db2,newsess-e733507ab2@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,到店有什么礼品？
+TC-H70-044-N,[活动规则] 线上预订后，多久内要去门店付订金？【待确认标准问答场景】,活动规则,否,200,0,agent_0355895073f44cd6bd78843bc5c1e58c,newsess-b7d7eeba01@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,线上预订后，多久内要去门店付订金？
+TC-H70-045-N,[私域侧活动] 线上抽奖/免单这是什么活动？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_a9709d01998e490f86875374bdf56ecc,newsess-2b9c9330d4@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,线上抽奖/免单这是什么活动？
+TC-H70-046-N,[私域侧活动] 线上免单活动时间是什么时候？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_83176d43f68a4458822733d71a44c794,newsess-aa62da1cc4@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,线上免单活动时间是什么时候？
+TC-H70-047-N,[私域侧活动] 免单是什么意思？是免费送手机吗？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_d451a5007f23418f8b8f21a73f05eca3,newsess-b276338c5d@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,免单是什么意思？是免费送手机吗？
+TC-H70-048-N,[私域侧活动] 一共抽几个名额？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_d07b6768dc864080a635a3a199ec7dd2,newsess-cb68cef01e@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,一共抽几个名额？
+TC-H70-049-N,[私域侧活动] 怎样才有资格参加抽奖？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_9a83d19cbc2b467e95e21861d45cc986,newsess-38f6ec266a@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,怎样才有资格参加抽奖？
+TC-H70-050-N,[私域侧活动] 只加了 WhatsApp 能参加抽奖吗？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_4d570a7378154c1e82f76d8c9e14760e,newsess-0c5b92a6d0@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,只加了 WhatsApp 能参加抽奖吗？
+TC-H70-051-N,[私域侧活动] 只预订没提机能参加吗？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_40a419e8634a42a6a2f075042af0b2f1,newsess-3bb74f6304@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,只预订没提机能参加吗？
+TC-H70-052-N,[私域侧活动] 买别的机型能参加吗？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_bab7f24c5c6d47758c3ba5c344331be8,newsess-eddba6c203@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,买别的机型能参加吗？
+TC-H70-053-N,[私域侧活动] 活动期之外买的算吗？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_f8d8332009ad4ca28f4edfaded03dee4,newsess-3821c94223@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,活动期之外买的算吗？
+TC-H70-054-N,[私域侧活动] 发预定订单截图就能抽奖了吗？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_b7b136d93cf0481183f09e5cfb36f79d,newsess-a8ef3628ee@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,发预定订单截图就能抽奖了吗？
+TC-H70-055-N,[私域侧活动] 怎么正式获得抽奖名额？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_f473dbbc01e34576a257997faaa38c8e,newsess-562726a5ec@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,怎么正式获得抽奖名额？
+TC-H70-056-N,[私域侧活动] 为什么要发露脸照片？不发可以吗？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_a34de22f45d34e25a8640abb71b2c195,newsess-b716bb5c92@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,为什么要发露脸照片？不发可以吗？
+TC-H70-057-N,[私域侧活动] 一个人能有几个抽奖名额？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_d34cb73781ff42a0b3ffd5722cc772b0,newsess-4e97de23ed@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,一个人能有几个抽奖名额？
+TC-H70-058-N,[私域侧活动] 怎么预订 HOT70 Pro？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_bfa65efcc840421f9346b56d525f0b0a,newsess-6582abd42c@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,怎么预订 HOT70 Pro？
+TC-H70-059-N,[私域侧活动] 预订后多久能提机？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_5096fc0d25a34d18933cf2b4de891b3e,newsess-f65b0949ee@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,预订后多久能提机？
+TC-H70-060-N,[私域侧活动] 订单截图在哪里找？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_bfec649ec25d4a04817e4174cf7f33c4,newsess-bbdbd0d5c3@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,订单截图在哪里找？
+TC-H70-061-N,[私域侧活动] 可以预约到店时间吗？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_01a6f38d666b4d8892089661dfcc365f,newsess-69a3bc8db2@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,可以预约到店时间吗？
+TC-H70-062-N,[私域侧活动] 到店立减券是什么？怎么用？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_7c2c6f9f4f0c43a2b7cd046033849b71,newsess-b44b298601@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,到店立减券是什么？怎么用？
+TC-H70-063-N,[私域侧活动] 券码可以转给别人吗？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_4d2c3c062f2a4a928c53def0771f5624,newsess-deac149151@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,券码可以转给别人吗？
+TC-H70-064-N,[私域侧活动] 邀请好友有什么好处？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_c73ae8cbf52c4b819fae9c85550c89cc,newsess-37804b2dbf@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,邀请好友有什么好处？
+TC-H70-065-N,[私域侧活动] 什么时候开奖？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_64a79789e333461080dba7c21355dd80,newsess-eb51ca2972@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,什么时候开奖？
+TC-H70-066-N,[私域侧活动] 怎么开奖？公平吗？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_66026f3606884a71ae2b489d9d9feca3,newsess-4fc3bcbad1@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,怎么开奖？公平吗？
+TC-H70-067-N,[私域侧活动] 中奖后怎么领奖？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_21b6d7525bbb4b70b920cd8e40ecba14,newsess-1553bf90c9@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,中奖后怎么领奖？
+TC-H70-068-N,[私域侧活动] 中奖后退货还能拿免单吗？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_494a75218cc24b3e8b432ea5a2cd5fd9,newsess-6bf3284e60@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,中奖后退货还能拿免单吗？
+TC-H70-069-N,[私域侧活动] 线上免单活动是真的吗？会不会是骗人的？【待确认标准问答场景】,私域侧活动,待确认,200,0,agent_d60e4a4fcb334dea8e50cce7069106ad,newsess-e313d141b4@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,线上免单活动是真的吗？会不会是骗人的？
+TC-H70-070-N,[提机规则] 支持送货上门吗？【待确认标准问答场景】,提机规则,否,200,0,agent_18a0a400a0744ac7a618e126c5e5772f,newsess-99c4c1d7d6@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,支持送货上门吗？
+TC-H70-071-N,[私域侧活动] 预购福利和免单活动能同时参加吗？【待确认标准问答场景】,私域侧活动,否,200,0,agent_293697e56c3942dc891f483e0566d931,newsess-4ced6c92d7@s.whatsapp.net,open,,1,FAIL,无机器人outbound,,预购福利和免单活动能同时参加吗？
