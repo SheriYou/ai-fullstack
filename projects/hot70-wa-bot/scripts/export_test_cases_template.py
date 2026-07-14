@@ -202,7 +202,7 @@ def faq_title(r):
     if action == "none":
         return f"{topic}：用户问「{q}」时机器人不应自动回复"
     if ho == "conditional":
-        return f"{topic}：用户问「{q}」时应正确回复{fact_hint or ''}（必要时可转人工）"
+        return f"{topic}：用户问「{q}」时应正确回复{fact_hint or ''}（命中条件场景必须转人工）"
     return f"{topic}：用户问「{q}」时应正确回复{fact_hint}"
 
 
@@ -408,7 +408,7 @@ def load_faq_cases():
                     expected = f"1. 意图识别为：{intent}\n2. 回复与 FAQ 口径一致"
 
             if ho == "conditional":
-                expected += "\n4. 若用户追问特殊/动态信息，应视情况转人工"
+                expected += "\n4. 命中转人工条件场景时，必须触发转人工"
 
             operation = format_operation_steps(
                 "G1 环境就绪；FAQ 状态建议已确认；RAGFlow 可用",

@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 FAQ_JSON = ROOT / "data" / "faq-export" / "sources.json"
+FAQ_CSV = ROOT / "prd" / "Hot 70 FAQ知识库_FAQ知识库_全部FAQ.csv"
 
 CAT_INTENT = {
     "HOT70 商品信息": "产品信息",
@@ -56,7 +57,8 @@ def resolve_category(cat: str) -> tuple[str, str]:
         return "人工兜底", "HANDOFF"
     return "无法覆盖", "OTHER"
 
-FAQ_Q_COL = "用户问题（用户实际使用语种）"
+FAQ_Q_COL = "用户问题"
+FAQ_Q_EN_COL = "问题（英文）"
 
 
 def keywords_from_translation(text: str, max_kw: int = 8) -> str:
@@ -76,12 +78,58 @@ def keywords_from_translation(text: str, max_kw: int = 8) -> str:
 
 
 def parse_handoff(val: str) -> str:
+    # Source of truth is ONLY the "是否需要转人工" field.
+    # Never infer conditional from whether "转人工条件" is empty/non-empty.
     v = str(val).strip()
     if v == "是":
         return "true"
     if v == "否":
         return "false"
     return "conditional"
+
+
+def normalize_space(s: str) -> str:
+    return re.sub(r"\s+", " ", str(s or "")).strip()
+
+
+def split_handoff_conditions(en_text: str, note_text: str, limit: int = 5) -> list[str]:
+    """Extract semantic condition scenarios for conditional handoff rows.
+
+    The source might be a sentence like:
+    - "Transfer to human if booking fails, entry page cannot be opened, or process is abnormal"
+    - "如用户预订失败、入口打不开、流程异常，转人工。"
+    """
+    parts: list[str] = []
+    raw_items = [normalize_space(en_text), normalize_space(note_text)]
+    for raw in raw_items:
+        if not raw:
+            continue
+        cleaned = raw
+        cleaned = re.sub(
+            r"(?i)^transfer to human(?:\s+for.*)?\s+if\s+",
+            "",
+            cleaned,
+        )
+        cleaned = re.sub(r"(?i)^if\s+", "", cleaned)
+        cleaned = re.sub(r"^如(果)?", "", cleaned)
+        cleaned = re.sub(r"(，|,)?转人工.*$", "", cleaned)
+        for token in re.split(r"(?:\bor\b|\band\b|[，,；;。/\n、]|以及|或者|或|并且)", cleaned):
+            t = normalize_space(token).strip("：:。.!?？")
+            if len(t) < 2:
+                continue
+            parts.append(t)
+
+    out: list[str] = []
+    seen = set()
+    for p in parts:
+        k = p.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(p[:120])
+        if len(out) >= limit:
+            break
+    return out
 
 
 def split_similar(s: str) -> list[str]:
@@ -106,7 +154,7 @@ def extract_faq_rows(src) -> list[dict]:
     auto = 0
     for wb_name, sheet_name, sheet in iter_sheets(src):
         cols = sheet.get("columns", [])
-        if FAQ_Q_COL not in cols or "分类" not in cols:
+        if FAQ_Q_COL not in cols or FAQ_Q_EN_COL not in cols or "分类" not in cols:
             continue
         if "话术编号" in cols:
             continue
@@ -115,14 +163,61 @@ def extract_faq_rows(src) -> list[dict]:
             cat = str(row.get("分类", "")).strip()
             if not q or not cat:
                 continue
+            q_en = str(row.get(FAQ_Q_EN_COL, "")).strip()
             seq = row.get("序号", "")
             if seq != "" and str(seq) != "nan":
                 fid = f"FAQ-{int(float(seq)):03d}"
             else:
                 auto += 1
                 fid = f"FAQ-A{auto:03d}"
-            rows_out.append({**row, "_fid": fid, "_wb": wb_name, "_sheet": sheet_name})
+            rows_out.append(
+                {
+                    **row,
+                    "_fid": fid,
+                    "_wb": wb_name,
+                    "_sheet": sheet_name,
+                    "_question": q,
+                    "_question_en": q_en,
+                }
+            )
     return rows_out
+
+
+def extract_faq_rows_from_csv(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    for enc in ("utf-8-sig", "utf-8", "gb18030", "cp936"):
+        try:
+            with path.open("r", encoding=enc, newline="") as f:
+                reader = csv.DictReader(f)
+                rows_out = []
+                auto = 0
+                for row in reader:
+                    q = str(row.get(FAQ_Q_COL, "")).strip()
+                    cat = str(row.get("分类", "")).strip()
+                    if not q or not cat:
+                        continue
+                    q_en = str(row.get(FAQ_Q_EN_COL, "")).strip()
+                    seq = row.get("序号", "")
+                    if seq != "" and str(seq) != "nan":
+                        fid = f"FAQ-{int(float(seq)):03d}"
+                    else:
+                        auto += 1
+                        fid = f"FAQ-A{auto:03d}"
+                    rows_out.append(
+                        {
+                            **row,
+                            "_fid": fid,
+                            "_wb": "prd_csv",
+                            "_sheet": "FAQ",
+                            "_question": q,
+                            "_question_en": q_en,
+                        }
+                    )
+                return rows_out
+        except UnicodeDecodeError:
+            continue
+    return []
 
 
 def extract_script_rows(src) -> list[dict]:
@@ -163,21 +258,29 @@ def load_exception_scenarios() -> list[dict]:
 
 
 def build():
-    src = load_sources()
-    faq_rows = extract_faq_rows(src)
-    script_rows = extract_script_rows(src)
+    faq_rows = extract_faq_rows_from_csv(FAQ_CSV)
+    if faq_rows:
+        script_rows = []
+    else:
+        src = load_sources()
+        faq_rows = extract_faq_rows(src)
+        script_rows = extract_script_rows(src)
 
     intent_rows, kb_rows, handoff_rows, script_rows_out = [], [], [], []
+    conditional_without_scene = 0
 
     for row in faq_rows:
         fid = row["_fid"]
         cat = row["分类"]
-        q = str(row[FAQ_Q_COL]).strip()
+        q = str(row.get("_question", "")).strip()
         intent, code = resolve_category(cat)
         trans = str(row.get("回复中文翻译", "") or row.get("业务反馈", ""))
         facts = keywords_from_translation(trans)
         ho = parse_handoff(row.get("是否需要转人工", ""))
-        action = "handoff" if ho == "true" else "reply"
+        # "conditional" means condition-triggered handoff.
+        # Base FAQ question itself is treated as normal reply unless explicitly "true".
+        base_ho = "false" if ho == "conditional" else ho
+        action = "handoff" if base_ho == "true" else "reply"
         pri = "P0"
 
         kb_rows.append(
@@ -186,7 +289,7 @@ def build():
                 input=q,
                 category=code,
                 expected_facts=facts,
-                should_handoff=ho,
+                should_handoff=base_ho,
                 priority=pri,
                 rule_id=fid,
                 source="faq",
@@ -199,7 +302,7 @@ def build():
                 expected_intent=intent,
                 expected_action=action,
                 expected_facts=facts if action == "reply" else "",
-                should_handoff=ho,
+                should_handoff=base_ho,
                 priority=pri,
                 rule_id=fid,
                 source="faq",
@@ -214,7 +317,7 @@ def build():
                     expected_intent=intent,
                     expected_action=action,
                     expected_facts=facts if action == "reply" else "",
-                    should_handoff=ho,
+                    should_handoff=base_ho,
                     priority=pri,
                     rule_id=fid,
                     source="faq_paraphrase",
@@ -226,26 +329,44 @@ def build():
                     input=sim_q,
                     category=code,
                     expected_facts=facts,
-                    should_handoff=ho,
+                    should_handoff=base_ho,
                     priority=pri,
                     rule_id=fid,
                     source="faq_paraphrase",
                 )
             )
         note = str(row.get("转人工条件/备注", "")).strip()
-        if ho in ("true", "conditional"):
+        note_en = str(row.get("转人工条件（英文）", "")).strip()
+        if ho == "true":
             handoff_rows.append(
                 dict(
                     id=f"HO-{fid}",
                     input=q,
-                    expected_action="handoff" if ho == "true" else "conditional",
-                    reason=note or cat,
-                    should_handoff=ho,
+                    expected_action="handoff",
+                    reason=note or note_en or cat,
+                    should_handoff="true",
                     priority=pri,
                     rule_id=fid,
                     source="faq",
                 )
             )
+        elif ho == "conditional":
+            scenes = split_handoff_conditions(note_en, note)
+            if not scenes:
+                conditional_without_scene += 1
+            for i, scene in enumerate(scenes, 1):
+                handoff_rows.append(
+                    dict(
+                        id=f"HO-{fid}-C{i:02d}",
+                        input=scene,
+                        expected_action="handoff",
+                        reason=note or note_en or cat,
+                        should_handoff="true",
+                        priority=pri,
+                        rule_id=fid,
+                        source="faq_condition",
+                    )
+                )
 
     for row in script_rows:
         sid = row["话术编号"]
@@ -358,6 +479,7 @@ def build():
         "handoff": len(handoff_rows),
         "script": len(script_rows_out),
         "adversarial": len(adv_rows),
+        "conditional_without_scene": conditional_without_scene,
     }
     (DATA / "faq-export" / "build-summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"

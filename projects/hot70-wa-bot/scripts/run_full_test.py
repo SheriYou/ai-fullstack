@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Full automated test: G2 smoke + all L2 corpus via webhook API."""
+"""Full automated test: Formal 用例（verify_profile）."""
 from __future__ import annotations
 
 import csv
 import json
 import sys
-import time
-import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -16,15 +14,6 @@ REPORTS = ROOT / "reports"
 DATA = ROOT / "data"
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from l2_eval_core import (  # noqa: E402
-    classify_fail,
-    eval_row_by_corpus,
-    first_response_ms,
-    is_handoff,
-    session_id_from,
-    session_task_type,
-    session_customer_tag,
-)
 from prd_acceptance_metrics import (  # noqa: E402
     compute_all_metrics,
     format_l2_gates_markdown,
@@ -49,119 +38,14 @@ from run_test_suite import (  # noqa: E402
     DEFAULT_PASS,
     DEFAULT_USER,
     Client,
-    find_conversation,
-    outbound_texts,
 )
-from case_executor import poll_turn_state, user_message_from_input  # noqa: E402
 from test_case_runner import run_all_formal_cases  # noqa: E402
-
-CORPUS_FILES = {
-    "intent": DATA / "corpus-intent.csv",
-    "kb": DATA / "corpus-kb.csv",
-    "handoff": DATA / "corpus-handoff.csv",
-    "adversarial": DATA / "corpus-adversarial.csv",
-}
 
 BLOCKED_PREFIXES = ("TC-M9-",)
 
 
 def load_rows(path: Path) -> list[dict]:
     return list(csv.DictReader(path.open(encoding="utf-8-sig")))
-
-
-def eval_corpus_row(client: Client, channel: str, bl: int, row: dict, wait: float) -> dict:
-    cid = row.get("id", "")
-    text = user_message_from_input(row.get("input") or "")
-    if not text:
-        return {
-            "id": cid,
-            "corpus": row.get("_corpus", ""),
-            "input": (row.get("input") or "")[:80],
-            "whatsapp_id": "",
-            "session_id": "",
-            "response_ms": "",
-            "routing_pass": "NA",
-            "status": "SKIP",
-            "automation_result": "SKIP",
-            "business_result": "NA",
-            "fail_class": "NA",
-            "notes": "non-simulatable input (steps/preconditions only)",
-        }
-
-    corpus_name = row.get("_corpus", "")
-    should_ho = (row.get("should_handoff") or "").lower()
-    action = (row.get("expected_action") or "").lower()
-    expect_handoff = should_ho == "true" or action == "handoff"
-
-    wa = f"l2-{uuid.uuid4().hex[:10]}@s.whatsapp.net"
-    t0 = time.perf_counter()
-    st, wh = client.webhook(channel, wa, text)
-    poll_wait = max(wait, 4.0) if expect_handoff else wait
-    sess, msgs, conv, texts = poll_turn_state(
-        client, bl, wa, wait_s=poll_wait, expect_handoff=expect_handoff,
-    )
-    task_type = session_task_type(sess)
-    customer_tag = session_customer_tag(sess, conv)
-    handoff = is_handoff(sess, conv)
-    wh_ok = st == 200 and (wh.get("data") or {}).get("status") == "success"
-    auto = "PASS" if wh_ok else "FAIL"
-    resp_ms = first_response_ms(msgs, fallback_wait_ms=wait * 1000)
-
-    biz, note_list, routing_pass = eval_row_by_corpus(
-        corpus=corpus_name,
-        row=row,
-        wh_ok=wh_ok,
-        wh_st=st,
-        sess=sess,
-        conv=conv,
-        texts=texts,
-        task_type=task_type,
-        handoff=handoff,
-    )
-    notes = "; ".join(note_list)
-    status = "PASS" if auto == "PASS" and biz == "PASS" else ("SKIP" if auto == "SKIP" else "FAIL")
-    fail_class = classify_fail(
-        corpus=corpus_name,
-        automation_result=auto,
-        business_result=biz,
-        notes=notes,
-        status=status,
-    )
-
-    return {
-        "id": cid,
-        "corpus": corpus_name,
-        "input": text[:80],
-        "whatsapp_id": wa,
-        "session_id": session_id_from(sess),
-        "response_ms": int(resp_ms) if resp_ms is not None else "",
-        "routing_pass": "PASS" if routing_pass else "FAIL",
-        "status": status,
-        "automation_result": auto,
-        "business_result": biz,
-        "fail_class": fail_class,
-        "task_type": task_type,
-        "customer_tag": customer_tag,
-        "should_handoff": row.get("should_handoff", ""),
-        "outbound_preview": texts[-1][:120] if texts else "",
-        "notes": notes or ("OK" if biz == "PASS" else ""),
-        "_elapsed_s": round(time.perf_counter() - t0, 2),
-    }
-
-
-def run_all_corpus(client: Client, channel: str, bl: int, wait: float) -> list[dict]:
-    results = []
-    for name, path in CORPUS_FILES.items():
-        if not path.exists():
-            continue
-        rows = load_rows(path)
-        for row in rows:
-            row = dict(row)
-            row["_corpus"] = name
-            results.append(eval_corpus_row(client, channel, bl, row, wait))
-            if len(results) % 50 == 0:
-                print(f"  corpus progress {len(results)}...", flush=True)
-    return results
 
 
 def write_reports(run_id: str, executed_at: str, formal: list, corpus: list, meta: dict):
@@ -234,23 +118,13 @@ def write_reports(run_id: str, executed_at: str, formal: list, corpus: list, met
             f"| {r.get('case_id','')} | {r.get('module','')} | {r.get('business_result','')} | {str(r.get('notes',''))[:50]} |"
         )
 
-    fails = [r for r in corpus if r.get("business_result") == "FAIL"][:30]
     lines += [
         "",
-        "## L2 语料（业务 Fail 样例 Top30）",
+        "## L2 语料",
         "",
-        "| ID | corpus | 业务 | fail_class | task_type | notes |",
-        "|----|--------|------|------------|-----------|--------------|-------|",
+        "> 本脚本不再执行旧 `corpus-*.csv` 回归；L2 请改用 `python scripts/run_kb_metrics_test.py`。",
+        "",
     ]
-    if fails:
-        for r in fails:
-            lines.append(
-                f"| {r['id']} | {r.get('corpus','')} | {r.get('business_result','')} | "
-                f"{r.get('fail_class','')} | {r.get('task_type','')} | {r.get('customer_tag','')} | {str(r.get('notes',''))[:40]} |"
-            )
-    else:
-        lines.append("| — | — | — | — | — | 本轮未执行或无 Fail |")
-    lines.append("")
 
     bugs, bug_analysis = build_bug_registry(run_id, formal, corpus)
     case_bugs = case_to_bugs_map(bugs)
@@ -261,7 +135,7 @@ def write_reports(run_id: str, executed_at: str, formal: list, corpus: list, met
         "## 说明",
         "",
         "- Formal 用例按 `verify_profile` 逐条断言；`MANUAL_PENDING` 项需 L3 人工补测",
-        "- L2 语料为 FAQ 批量回归，补充 intent/kb/handoff 指标",
+        "- L2 专项请使用 `run_kb_metrics_test.py`（数据源：Hot70_机器人_知识库指标测试.csv）",
         "- 缺陷清单见 `bug-registry.csv`；用例↔缺陷见 `bug-case-mapping.csv`",
         f"- 本轮全部产出物见 `{bundle.relative_to(ROOT).as_posix()}/`（含 Word 报告 `test-report.docx`）",
         "",
@@ -434,15 +308,8 @@ def main():
     ff = sum(1 for r in formal if r.get("business_result") == "FAIL")
     print(f"formal done pass={fp} fail={ff} partial={sum(1 for r in formal if r.get('business_result')=='PARTIAL')}", flush=True)
 
-    print("running L2 corpus...", flush=True)
-    corpus = run_all_corpus(client, channel, bl, wait)
-    print(
-        f"corpus done auto_pass={sum(1 for r in corpus if r.get('automation_result')=='PASS')} "
-        f"biz_pass={sum(1 for r in corpus if r.get('business_result')=='PASS')} "
-        f"biz_fail={sum(1 for r in corpus if r.get('business_result')=='FAIL')} "
-        f"skip={sum(1 for r in corpus if r.get('status')=='SKIP')}",
-        flush=True,
-    )
+    corpus: list[dict] = []
+    print("skip legacy L2 corpus regression; use scripts/run_kb_metrics_test.py", flush=True)
 
     md, summary = write_reports(run_id, executed_at, formal, corpus, {
         "base": DEFAULT_BASE,

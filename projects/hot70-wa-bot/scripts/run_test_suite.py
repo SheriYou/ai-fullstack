@@ -13,8 +13,6 @@ from datetime import datetime
 from pathlib import Path
 from urllib import error, request
 
-from l2_eval_core import session_customer_tag
-
 ROOT = Path(__file__).resolve().parents[1]
 REPORTS = ROOT / "reports"
 DATA = ROOT / "data"
@@ -39,17 +37,22 @@ class Client:
             method=method,
             headers={"Content-Type": "application/json", "Accept": "application/json"},
         )
-        try:
-            with self.opener.open(req, timeout=timeout) as resp:
-                raw = resp.read().decode("utf-8")
-                return resp.status, json.loads(raw) if raw else {}
-        except error.HTTPError as e:
-            raw = e.read().decode("utf-8", errors="replace")
+        for attempt in range(4):
             try:
-                payload = json.loads(raw)
-            except json.JSONDecodeError:
-                payload = {"raw": raw}
-            return e.code, payload
+                with self.opener.open(req, timeout=timeout) as resp:
+                    raw = resp.read().decode("utf-8")
+                    return resp.status, json.loads(raw) if raw else {}
+            except error.HTTPError as e:
+                raw = e.read().decode("utf-8", errors="replace")
+                try:
+                    payload = json.loads(raw)
+                except json.JSONDecodeError:
+                    payload = {"raw": raw}
+                return e.code, payload
+            except (error.URLError, ConnectionResetError, TimeoutError, OSError):
+                if attempt >= 3:
+                    raise
+                time.sleep(0.6 * (attempt + 1))
 
     def login(self, user: str, password: str) -> bool:
         status, data = self._call("POST", "/auth/login", {"username": user, "password": password})
@@ -152,37 +155,6 @@ def run_smoke(client: Client, channel: str, bl: int, wa: str, wait: float) -> li
     return out
 
 
-def run_corpus_sample(client: Client, channel: str, bl: int, wait: float, limit: int = 15) -> list[dict]:
-    path = DATA / "corpus-intent.csv"
-    rows = list(csv.DictReader(path.open(encoding="utf-8")))[:limit]
-    wa_base = f"corpus-{uuid.uuid4().hex[:6]}"
-    results = []
-    for i, row in enumerate(rows):
-        wa = f"{wa_base}-{i}@s.whatsapp.net"
-        text = (row.get("input") or "").strip()
-        if not text or text.startswith("("):
-            results.append({"id": row.get("id"), "status": "SKIP", "reason": "non-simulatable"})
-            continue
-        st, wh = client.webhook(channel, wa, text, sender_name=row.get("id", "WhatsApp User"))
-        time.sleep(wait)
-        sess = client.session(bl, wa)
-        conv = find_conversation(client.conversations(bl), wa)
-        session_obj = sess.get("session") or sess
-        ok = st == 200 and (wh.get("data") or {}).get("status") == "success"
-        results.append({
-            "id": row.get("id"),
-            "status": "PASS" if ok else "FAIL",
-            "input": text[:60],
-            "whatsapp_id": wa,
-            "session_id": (session_obj.get("session_id") or session_obj.get("sessionId") or ""),
-            "expected_intent": row.get("expected_intent"),
-            "task_type": session_obj.get("task_type"),
-            "customer_tag": session_customer_tag(sess, conv),
-            "webhook_http": st,
-        })
-    return results
-
-
 def write_report(smoke: list, corpus: list, meta: dict):
     """轻量报告写入 runs/{run_id}/suite-report.md（不在 reports 根目录落盘）。"""
     from run_bundle import run_dir
@@ -221,9 +193,9 @@ def write_report(smoke: list, corpus: list, meta: dict):
         lines.append(f"| {r['id']} | {r['status']} | {r.get('input','')[:30]} | {str(note)[:50]} |")
     lines += [
         "",
-        "## L2 语料抽样（webhook 可达 + session 可观测）",
+        "## L2 语料",
         "",
-        f"Pass={cp} Fail={cf} Skip={cs}（样本 {len(corpus)} 条，未做 task_type 映射断言）",
+        "旧 corpus 抽样回归已下线；L2 统一改用 `python scripts/run_kb_metrics_test.py`。",
         "",
         "| ID | 结果 | 输入 | task_type |",
         "|----|------|------|-----------|--------------|",
@@ -237,7 +209,7 @@ def write_report(smoke: list, corpus: list, meta: dict):
         "- webhook 使用 LocalGateway 格式：`whatsapp_id` + `content` + `message_id`",
         "- `/api/webhook/channels/...` 在测试环境返回 404，已改用 `/api/webhook/{channelKey}`",
         "- 智齿 external-handoff / 真机 WA 未在本轮执行",
-        "- 完整 task_type 映射断言见 `spec/intent-task-mapping.md`",
+        "- 知识库指标专项：`scripts/run_kb_metrics_test.py`",
         "",
     ]
     out.write_text("\n".join(lines), encoding="utf-8")
@@ -252,8 +224,6 @@ def main():
     channel = "ch_wa_01"
     bl = 1
     wait = 4.0
-    corpus_limit = 15
-
     client = Client(base, user, password)
     if not client.login(user, password):
         print("LOGIN FAILED", file=sys.stderr)
@@ -264,7 +234,7 @@ def main():
     print(f"smoke wa={wa}")
 
     smoke = run_smoke(client, channel, bl, wa, wait)
-    corpus = run_corpus_sample(client, channel, bl, wait, corpus_limit)
+    corpus: list[dict] = []
     report = write_report(smoke, corpus, {
         "base": base,
         "channel": channel,

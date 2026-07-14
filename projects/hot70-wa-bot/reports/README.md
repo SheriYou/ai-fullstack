@@ -29,6 +29,9 @@ reports/
 # 全量测试（自动归档 + 生成 Word）
 python scripts/run_full_test.py
 
+# L2 知识库指标专项（以 prd/Hot70_机器人_知识库指标测试.csv 为准）
+python scripts/run_kb_metrics_test.py
+
 # 将已有产出物迁入 runs/ 并补 Word
 python scripts/bundle_run.py 20260630-135252
 
@@ -84,6 +87,16 @@ python ../../../scripts/daily_cleanup.py --project hot70-wa-bot --dry-run
 | 意图路由 | ≥90% | **corpus-intent** `routing_pass` |
 | 转人工 | ≥90% | **corpus-handoff**（LOCAL） |
 | 平均响应时间 | ≤10s | `response_ms` 字段 |
+
+## L2 知识库指标专项（新）
+
+- 数据源：`prd/Hot70_机器人_知识库指标测试.csv`
+- 脚本：`scripts/run_kb_metrics_test.py`
+- 产出物：`reports/runs/{run_id}/kb-metrics-report.md`、`kb-metrics-results.csv`、`kb-metrics-summary.json`
+- 说明：旧 `corpus-*.csv` 回归已下线，L2 统一以该专项为准
+- 字段：`actual_intent_tag_raw`、`actual_intent_tag_norm`、`intent_tag_accuracy`、`intent_tag_recommended`、`intent_tag_source`、`intent_tag_reason`
+- 标签源优先级：`trace-log(TAG_APPLIED)` → `conversations.tags` → 表格字段回退
+- 说明：默认启用 LLM 判定 `意图标签是否准确`（可用 `--disable-llm-intent-tag` 降级为规则判定）
 
 ## 静态参考文档（非单次 run 产出）
 

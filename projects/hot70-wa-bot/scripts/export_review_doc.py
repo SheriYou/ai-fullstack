@@ -15,7 +15,7 @@ intent_total = 0
 if summary_path.exists():
     intent_total = json.loads(summary_path.read_text(encoding="utf-8")).get("intent", 0)
 for r in rows:
-    q = str(r.get("用户问题（用户实际使用语种）", "")).strip()
+    q = str(r.get("用户问题", "")).strip()
     cat = str(r.get("分类", "")).strip()
     if not q or not cat:
         continue

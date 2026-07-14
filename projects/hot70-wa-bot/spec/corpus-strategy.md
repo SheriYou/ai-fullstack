@@ -8,7 +8,7 @@
 |------|--------|------------|--------------|
 | `corpus-intent.csv` | **task_type 路由** + handoff 动作 | `expected_facts` 关键词 | `routing_pass=PASS` |
 | `corpus-kb.csv` | **expected_facts** 关键事实 | 七类 intent 字面 | `business_result=PASS`（facts 匹配） |
-| `corpus-handoff.csv` | **转人工触发**（Q07 LOCAL） | FAQ 全文 | `true` 必 handoff；`false` 必不转；`conditional` 转或答均可 |
+| `corpus-handoff.csv` | **转人工触发**（Q07 LOCAL） | FAQ 转人工条件场景 | `true` 必 handoff；`false` 必不转；`conditional` 应拆为「标准问法不转 + 条件场景必转」 |
 | `corpus-adversarial.csv` | 超范围/负向/不编造 | — | handoff 或合理兜底 |
 
 **不要**用同一问法在 intent + kb 上双重判 Fail：intent Fail = 路由错；kb Fail = 内容错。

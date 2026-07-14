@@ -4,7 +4,7 @@
 
 | 资产 | 文件 | 覆盖什么 | 谁 Review |
 |------|------|----------|-----------|
-| FAQ 语料 | `corpus-*.csv` + `corpus-review-for-ops.md` | M3/M4 问法+预期 | 运营 |
+| 知识库指标用例 | `prd/Hot70_机器人_知识库指标测试.csv` | L2 知识命中/转人工专项 | 测试 |
 | 完整用例 | `test-cases-full.csv` + `test-cases-full-review.md` | 冒烟/链路/字段/日志/指标/异常 | 测试 |
 | 实现映射 | `spec/intent-task-mapping.md`、`log-field-mapping.md`、`handoff-dual-path.md` | L2 断言与 PRD 差异 | 测试+开发 |
 | 语料分工 | `spec/corpus-strategy.md` | intent 路由 vs kb 事实 | 测试 |
@@ -13,11 +13,11 @@
 
 ```
 ① SpecMiner     PRD + 后端/前端代码 → rules / trace / handoff-dual-path
-② TestFactory   规则 → corpus-*.csv（分工见 corpus-strategy）
+② TestFactory   规则 → `Hot70_机器人_知识库指标测试.csv`（L2 专项）
 ③ 人工 Review   运营确认 FAQ 口径
 ④ RegressionRunner  python scripts/run_full_test.py
    - **Formal 82 条**：按 `verify_profile` 逐条断言（`test_case_runner.py`）
-   - **L2 语料**：FAQ 批量回归（corpus-*.csv）
+   - **L2 专项**：`python scripts/run_kb_metrics_test.py`
 ⑤ 人工 L3       checklist-smoke.md + checklist-m11-web-agent.md
 ⑥ ReportScribe  reports/runs/{run_id}/（md + docx + csv）
 ```
@@ -49,5 +49,6 @@
 Step1: 读 spec/handoff-dual-path.md + spec/corpus-strategy.md
 Step2: G1 checklist-env.md
 Step3: python scripts/run_full_test.py
+Step3b: python scripts/run_kb_metrics_test.py
 Step4: 看报告 L2 门禁 + Fail 分类 → 人工 L3 checklist-m11-web-agent.md
 ```

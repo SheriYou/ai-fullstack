@@ -11,10 +11,10 @@
 
 ## 当前阶段
 
-**Phase 2 L2 已跑通脚本；G2/G2.5 待人工 L3+M11**
+**Phase 2：Formal 已自动化；L2 以知识库指标 CSV 专项执行；G2/G2.5 待人工 L3+M11**
 
 - **Q07 ✅**：转人工 → 本地 Web 坐席（`spec/handoff-dual-path.md`）
-- L2 全量：`python scripts/run_full_test.py`
+- L2 知识库专项：`python scripts/run_kb_metrics_test.py`
 - L3 坐席：`checklist-m11-web-agent.md`
 
 ## 目录
@@ -32,8 +32,8 @@ hot70-wa-bot/
 │   ├── api-notes.md         ← webhook / debug API
 │   ├── intent-task-mapping.md
 │   └── log-field-mapping.md
-├── data/corpus-*.csv
-├── scripts/run_l2_eval.py   ← L2 批量
+├── prd/Hot70_机器人_知识库指标测试.csv
+├── scripts/run_kb_metrics_test.py   ← L2 知识库指标专项
 └── reports/
 ```
 
