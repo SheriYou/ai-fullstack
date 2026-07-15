@@ -157,6 +157,57 @@ def llm_judge_reply_accuracy(
     return val == "是", (f"llm:{reason}{suffix}" if reason else f"llm{suffix}")
 
 
+
+def llm_judge_knowledge_hit_correct(
+    *,
+    row: dict,
+    user_text: str,
+    bot_reply: str,
+    kb_candidates: list[dict],
+    recorded_hit: str,
+    project_root: Path,
+) -> tuple[bool, str]:
+    candidate_text = "\n\n".join(
+        f"KB candidate {idx}: question={c['entry'].get('q_raw', '')}; "
+        f"handoff_condition={c['entry'].get('note_raw', '')}; "
+        f"answer={c['entry'].get('a_raw', '')}; question_match_score={c['q_score']:.2f}"
+        for idx, c in enumerate(kb_candidates[:5], start=1)
+    ) or "No deterministic KB candidate was found."
+    system_prompt = (
+        "You are a QA reviewer. Decide whether the recorded knowledge-base hit flag is correct. "
+        "Match the user's session content to the supplied knowledge-base content. Return JSON only. "
+        "Set match=是 only when a supplied KB entry is relevant to the user's question or follow-up "
+        "scenario and the bot reply is grounded in that entry; handoff cases count as matched when the "
+        "user's request satisfies the KB handoff condition."
+    )
+    user_prompt = (
+        f"case_id: {(row.get('用例ID') or '').strip()}\n"
+        f"user_session_content: {user_text}\n"
+        f"bot_reply: {bot_reply}\n"
+        f"recorded_knowledge_hit: {recorded_hit}\n"
+        f"knowledge_base_candidates:\n{candidate_text}\n\n"
+        '{"match":"是|否","reason":"<=160 chars","confidence":0~1}'
+    )
+    txt = chat(
+        [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        project_root=project_root,
+        temperature=0,
+    )
+    obj = extract_json_object(txt)
+    if not obj:
+        raise RuntimeError("LLM returned invalid knowledge-hit judgment")
+    val = str(obj.get("match", "")).strip()
+    if val not in {"是", "否"}:
+        raise RuntimeError(f"LLM invalid knowledge-hit judgment: {obj}")
+    reason = str(obj.get("reason", "")).strip()
+    conf = obj.get("confidence", "")
+    suffix = f"; confidence={conf}" if conf != "" else ""
+    return val == "是", (f"llm:{reason}{suffix}" if reason else f"llm{suffix}")
+
+
 def rule_judge_reply_accuracy(
     *,
     expected_handoff: bool,
@@ -518,6 +569,32 @@ def resolve_trace_for_row(
     return best_payload
 
 
+def llm_judge_handoff_from_row(row: dict) -> tuple[bool, str]:
+    user_text = (row.get("测试数据（英文提问）") or row.get("测试数据") or "").strip()
+    reply = (row.get("实际回复内容（英文）") or "").strip()
+    prompt = (
+        "Judge whether the conversation actually transferred the user to a human agent. "
+        "A handoff suggestion or an unavailable-human fallback is not an actual handoff. "
+        "Return JSON only: {\"actual_handoff\":\"是/否\",\"reason\":\"...\"}.\n"
+        f"User question: {user_text}\nBot reply: {reply}"
+    )
+    txt = chat(
+        [{"role": "user", "content": prompt}],
+        project_root=Path(__file__).resolve().parents[1],
+        temperature=0,
+    )
+    raw = (txt or "").strip()
+    match = re.search(r"\{[\s\S]*\}", raw)
+    if not match:
+        raise RuntimeError(f"LLM returned invalid JSON: {raw[:160]}")
+    import json
+    obj = json.loads(match.group(0))
+    actual = str(obj.get("actual_handoff", "")).strip()
+    if actual not in {"是", "否"}:
+        raise RuntimeError(f"LLM returned invalid actual_handoff: {obj}")
+    return actual == "是", str(obj.get("reason", "")).strip()
+
+
 def resolve_handoff_timing_accuracy(
     *,
     row: dict,
@@ -529,18 +606,15 @@ def resolve_handoff_timing_accuracy(
         ok = (trace_handoff == 1) == expected_handoff
         return yesno_text(ok), ok, "trace_handoff_flag"
 
-    task_type = parse_task_type_from_note(row.get("备注", "") or row.get("澶囨敞", ""))
-    inferred_actual = infer_actual_handoff_from_task_type(task_type)
-    if inferred_actual is not None and expected_handoff is not None:
-        ok = inferred_actual == expected_handoff
-        return yesno_text(ok), ok, f"task_type:{task_type}"
-
-    existing = (row.get("转人工是否准确") or "").strip()
-    if existing in {"是", "否"}:
-        return existing, yesno_to_bool(existing), "existing_value"
+    if expected_handoff is not None:
+        try:
+            actual_handoff, reason = llm_judge_handoff_from_row(row)
+            ok = actual_handoff == expected_handoff
+            return yesno_text(ok), ok, f"llm:{reason}"
+        except (LlmConfigError, RuntimeError, ValueError):
+            pass
 
     return "待确认", None, "unknown"
-
 
 def normalize_text(value: str) -> str:
     if not value:
@@ -711,6 +785,9 @@ def load_kb_entries(kb_csv: Path, encoding: str) -> list[dict]:
                 continue
             entries.append(
                 {
+                    "q_raw": q,
+                    "note_raw": note,
+                    "a_raw": a,
                     "q_norm": q_norm,
                     "q_loose": q_loose,
                     "q_tokens": tokenize_words(q_loose),
@@ -737,6 +814,11 @@ def recompute(
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames or []
         rows = list(reader)
+    if "知识库是否命中正确" not in fieldnames:
+        insert_at = fieldnames.index("知识库是否命中") + 1 if "知识库是否命中" in fieldnames else len(fieldnames)
+        fieldnames.insert(insert_at, "知识库是否命中正确")
+        for row in rows:
+            row["知识库是否命中正确"] = ""
 
     changed_rows: list[dict] = []
     override_rows = 0
@@ -749,6 +831,8 @@ def recompute(
     handoff_unknown_rows = 0
     llm_reply_rows = 0
     llm_reply_fallback_rows = 0
+    llm_kb_correct_rows = 0
+    llm_kb_correct_fallback_rows = 0
     trace_cache: dict[str, list[dict]] = {}
 
     for idx, row in enumerate(rows, start=2):
@@ -818,11 +902,30 @@ def recompute(
         handoff_override = (expected_handoff is True) and (handoff_timing_ok is True)
         new_value = yesno_text(hit_by_kb or handoff_override)
 
+        recorded_hit = (row.get("知识库是否命中") or "").strip()
+        if recorded_hit not in {"是", "否"}:
+            recorded_hit = new_value
+        try:
+            llm_match, kb_correct_reason = llm_judge_knowledge_hit_correct(
+                row=row,
+                user_text=case_q_raw,
+                bot_reply=case_a_raw,
+                kb_candidates=near_candidates,
+                recorded_hit=recorded_hit,
+                project_root=Path(__file__).resolve().parents[1],
+            )
+            llm_kb_correct_rows += 1
+        except (LlmConfigError, RuntimeError):
+            llm_match = hit_by_kb
+            kb_correct_reason = "deterministic_fallback"
+            llm_kb_correct_fallback_rows += 1
+        kb_hit_correct = yesno_text(llm_match == (recorded_hit == "是"))
 
         old_value = (row.get("知识库是否命中") or "").strip()
         old_reply_acc = (row.get("回复是否准确") or "").strip()
         old_defects = row.get("缺陷记录", "")
         old_exec = (row.get("执行结果") or "").strip()
+        old_kb_hit_correct = (row.get("知识库是否命中正确") or "").strip()
         has_bot_reply = bool(case_a_raw.strip())
         if enable_llm_reply_accuracy:
             try:
@@ -874,6 +977,7 @@ def recompute(
                 defects_cleaned_rows += 1
 
         row["知识库是否命中"] = new_value
+        row["知识库是否命中正确"] = kb_hit_correct
         row["执行结果"] = recompute_execution_result(row)
         if old_exec != (row.get("执行结果") or "").strip():
             exec_changed_rows += 1
@@ -883,6 +987,7 @@ def recompute(
             or old_reply_acc != (row.get("回复是否准确") or "").strip()
             or (old_defects or "").strip() != (row.get("缺陷记录") or "").strip()
             or old_exec != (row.get("执行结果") or "").strip()
+            or old_kb_hit_correct != (row.get("知识库是否命中正确") or "").strip()
         ):
             changed_rows.append(
                 {
@@ -890,6 +995,8 @@ def recompute(
                     "用例ID": row.get("用例ID", ""),
                     "old_hit": old_value,
                     "new_hit": new_value,
+                    "kb_hit_correct": row.get("知识库是否命中正确", ""),
+                    "kb_hit_correct_reason": kb_correct_reason,
                     "handoff_override": "是" if handoff_override else "否",
                     "old_reply_acc": old_reply_acc,
                     "new_reply_acc": (row.get("回复是否准确") or "").strip(),
@@ -906,6 +1013,10 @@ def recompute(
         "changed_rows": len(changed_rows),
         "new_yes": sum(1 for r in rows if (r.get("知识库是否命中") or "").strip() == "是"),
         "new_no": sum(1 for r in rows if (r.get("知识库是否命中") or "").strip() == "否"),
+        "kb_hit_correct_yes": sum(1 for r in rows if (r.get("知识库是否命中正确") or "").strip() == "是"),
+        "kb_hit_correct_no": sum(1 for r in rows if (r.get("知识库是否命中正确") or "").strip() == "否"),
+        "llm_kb_correct_rows": llm_kb_correct_rows,
+        "llm_kb_correct_fallback_rows": llm_kb_correct_fallback_rows,
         "exec_pass_rows": sum(1 for r in rows if (r.get("执行结果") or "").strip() == "PASS"),
         "exec_fail_rows": sum(1 for r in rows if (r.get("执行结果") or "").strip() == "FAIL"),
         "exec_pending_rows": sum(1 for r in rows if (r.get("执行结果") or "").strip() in ("待确认", "NA")),
@@ -921,6 +1032,7 @@ def recompute(
         "row_end": row_end if row_end is not None else "",
         "kb_match_mode": "faq_text5_or_handoff_condition_en_keyword_then_business_feedback_semantic_compare",
         "fieldnames": fieldnames,
+        "kb_hit_correct_rule": "LLM compares session-to-KB match result with 知识库是否命中; equal=是, unequal=否",
     }
     return rows, {"stats": stats, "changed_rows": changed_rows}
 
@@ -993,6 +1105,8 @@ def main() -> None:
                 "用例ID",
                 "old_hit",
                 "new_hit",
+                "kb_hit_correct",
+                "kb_hit_correct_reason",
                 "handoff_override",
                 "old_reply_acc",
                 "new_reply_acc",
@@ -1030,6 +1144,10 @@ def main() -> None:
     print(f"changed_rows={stats['changed_rows']}")
     print(f"new_yes={stats['new_yes']}")
     print(f"new_no={stats['new_no']}")
+    print(f"kb_hit_correct_yes={stats['kb_hit_correct_yes']}")
+    print(f"kb_hit_correct_no={stats['kb_hit_correct_no']}")
+    print(f"llm_kb_correct_rows={stats['llm_kb_correct_rows']}")
+    print(f"llm_kb_correct_fallback_rows={stats['llm_kb_correct_fallback_rows']}")
     print(f"exec_pass_rows={stats['exec_pass_rows']}")
     print(f"exec_fail_rows={stats['exec_fail_rows']}")
     print(f"exec_pending_rows={stats['exec_pending_rows']}")

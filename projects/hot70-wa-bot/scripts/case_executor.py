@@ -103,6 +103,7 @@ def poll_turn_state(
     wait_s: float,
     expect_handoff: bool = False,
     require_outbound: bool = False,
+    min_outbound_count: int = 0,
 ) -> tuple[dict, list, dict | None, list[str]]:
     """等待 Agent 处理完成；FAQ 须 require_outbound=True 等到 outbound，不能仅凭 task_type 退出。"""
     deadline = time.time() + wait_s
@@ -126,7 +127,7 @@ def poll_turn_state(
             if ok:
                 break
         elif require_outbound:
-            if texts:
+            if len(texts) > min_outbound_count:
                 break
         elif texts:
             break

@@ -1,44 +1,65 @@
-# Hot70 WhatsApp Bot — 测试项目
+﻿# Hot70 指标专项测试
 
-| 项 | 路径 |
-|----|------|
-| 测试计划 | `prd/Hot70_WhatsApp_Bot_Test_Plan.md` |
-| PRD / FAQ（真相源） | `prd/` |
-| 框架说明 | `../../FRAMEWORK.md` |
-| 后端实现 | `../../../whatsapp-bot-service` |
-| 前端 Web 坐席 | `../../../whatsapp-bot-frontend` |
-| UAT 环境 Web | https://uat-paas.transsion.com/whatsapp-bot-web/ |
+当前项目聚焦一条独立链路：
 
-## 当前阶段
+> 基于知识库生成用例 → 执行用例 → 读取 Trace / 会话结果 → 判定指标 → 生成测试报告
 
-**Phase 2：Formal 已自动化；L2 以知识库指标 CSV 专项执行；G2/G2.5 待人工 L3+M11**
+## 主数据源
 
-- **Q07 ✅**：转人工 → 本地 Web 坐席（`spec/handoff-dual-path.md`）
-- L2 知识库专项：`python scripts/run_kb_metrics_test.py`
-- L3 坐席：`checklist-m11-web-agent.md`
+- 测试用例：`prd/Hot70_机器人_知识库指标测试.csv`
+- FAQ / 知识库源：`prd/Hot 70 FAQ知识库_FAQ知识库_全部FAQ.csv`
+- 运行配置：`config.env.example`
 
-## 目录
+指标专项 CSV 是本链路的唯一正式用例输入，不依赖旧 Formal、Corpus 或全量测试计划用例。
 
-```
-hot70-wa-bot/
-├── blocking.md              ← G0 阻塞项（含 Q07 双路径）
-├── checklist-env.md         ← G1
-├── checklist-smoke.md       ← G2
-├── checklist-m11-web-agent.md ← M11 Web 坐席（Q07 LOCAL）
-├── spec/
-│   ├── handoff-dual-path.md ← Q07 LOCAL 首版
-│   ├── corpus-strategy.md   ← intent/kb 分工
-│   ├── l2-fail-classification.md
-│   ├── api-notes.md         ← webhook / debug API
-│   ├── intent-task-mapping.md
-│   └── log-field-mapping.md
-├── prd/Hot70_机器人_知识库指标测试.csv
-├── scripts/run_kb_metrics_test.py   ← L2 知识库指标专项
-└── reports/
+## 主入口
+
+```powershell
+python scripts/run_kb_metrics_test.py
 ```
 
-## 关键差异（必读）
+该入口负责：
 
-1. AI 自动转人工 → **Web 本地坐席**；智齿 → **external-handoff API**
-2. L2 意图断言用 **task_type 映射**，非 PRD 七类字面
-3. M9 智齿客户标签 **未实现**，整模块 Blocked
+1. 从指标专项 CSV 读取标准问答和多轮追问用例；
+2. 按用例链规则执行 webhook / session / messages 流程；
+3. 读取 Trace 中的 `detected_intent`、`knowledge_hit`、`customer_tag`、`handoff_flag`、`latency_ms`；
+4. 校验回复事实、LOCAL 转人工和多轮会话结果；
+5. 输出指标结果、汇总 JSON 和 Markdown 报告。
+
+## 核心指标
+
+- 知识库命中率
+- 回复准确率
+- 转人工准确率
+- 客户标签准确率
+- 服务端真实耗时
+
+## 公共能力
+
+指标专项继续复用以下基础能力：
+
+- API Client 与环境配置
+- webhook、session、messages、conversation 查询
+- 轮询与会话状态解析
+- LOCAL handoff 校验
+- Trace 日志读取
+- 运行目录和结果归档
+- LLM 配置与可选辅助判定
+
+对应实现目前仍位于 `scripts/` 中，后续可进一步抽取到公共模块，但不改变专项入口。
+
+## 输出
+
+每次运行归档在 `reports/runs/{run_id}/`，主要包括：
+
+- `kb-metrics-results.csv`
+- `kb-metrics-summary.json`
+- `kb-metrics-report.md`
+
+## 归档内容
+
+旧 Formal / G2 / Corpus / PRD 全量测试链路已移动到：
+
+`archive/legacy-test-plan/`
+
+归档内容暂不删除，待确认无需历史复现后再清理。

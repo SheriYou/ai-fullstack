@@ -50,6 +50,7 @@ OUT_FIELDS = [
     "是否使用新会话",
     "实际回复内容（英文）",
     "知识库是否命中",
+    "知识库是否命中正确",
     "日志客户标签",
     "客户标签是否准确",
     "日志转人工",
@@ -169,13 +170,13 @@ def make_follow_up_en(scene: str, base_q_en: str) -> str:
     scene = (scene or "").strip()
     base_q_en = (base_q_en or "").strip()
     if not scene:
-        return "I have an issue with this case, can you help me check it?"
+        return "Could you help me with this issue?"
     # Ensure H-case prompt is follow-up and not identical to base N question.
     if scene.lower() == base_q_en.lower():
-        return f"I'm facing this issue: {scene}. What should I do next?"
+        return f"Could you clarify what I should do about {scene}?"
     if re.search(r"[?]$", scene):
         return scene
-    return f"I'm facing this issue: {scene}. What should I do?"
+    return f"Could you help me with {scene}?"
 
 
 def has_handoff_hint_en(text: str) -> bool:
@@ -228,6 +229,8 @@ def llm_follow_up_en(scene: str, base_q_en: str, category: str) -> str:
         raise RuntimeError("empty llm follow-up")
     if out.lower() == base_q_en.lower():
         raise RuntimeError("llm follow-up equals base question")
+    if re.search(r"(?i)\b(i\s*['’]?m|i am)\s+facing\s+this\s+issue\s*:", out):
+        raise RuntimeError("llm follow-up contains mechanical prefix")
     if has_handoff_hint_en(out):
         raise RuntimeError("llm follow-up contains handoff hint")
     if not out.endswith("?"):

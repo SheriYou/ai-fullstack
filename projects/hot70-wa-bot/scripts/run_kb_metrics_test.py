@@ -10,11 +10,13 @@ import re
 import sys
 import time
 import uuid
+
+CASE_ID_RE = re.compile(r"^(TC-H70-\d{3})-(N|H-C\d+)$")
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from case_executor import is_handoff_reply_text, poll_turn_state, verify_local_handoff
+from case_executor import is_handoff_reply_text, poll_turn_state
 from l2_eval_core import facts_match, first_response_ms, session_id_from, session_task_type
 from run_bundle import run_dir
 from run_test_suite import DEFAULT_BASE, DEFAULT_PASS, DEFAULT_USER, Client
@@ -55,6 +57,10 @@ def load_rows(path: Path) -> list[dict]:
     if last_error:
         raise last_error
     return []
+
+
+def yesno_text(value: bool) -> str:
+    return "是" if value else "否"
 
 
 def normalize_handoff(value: str) -> str:
@@ -308,6 +314,45 @@ def llm_judge_intent_tag(
     return acc, rec, reason, "llm"
 
 
+def llm_judge_handoff(
+    *,
+    case_id: str,
+    case_name: str,
+    user_cn: str,
+    user_en: str,
+    transcript: str,
+) -> tuple[bool, str]:
+    system_prompt = (
+        "You are a QA reviewer. Judge whether the actual conversation transferred "
+        "the user to a human agent. Use the conversation evidence only. Return JSON only."
+    )
+    user_prompt = (
+        f"case_id: {case_id}\n"
+        f"case_name: {case_name}\n"
+        f"user_question_cn: {user_cn}\n"
+        f"user_question_en: {user_en}\n"
+        f"transcript:\n{transcript}\n\n"
+        '{"actual_handoff":"是/否","reason":"one short reason"}. '
+        "Use 是 only when the conversation shows an actual handoff, not merely a handoff suggestion or fallback message."
+    )
+    txt = chat(
+        [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        project_root=ROOT,
+        temperature=0,
+    )
+    obj = extract_json_object(txt)
+    if not obj:
+        raise RuntimeError(f"LLM returned invalid JSON: {txt[:160]}")
+    actual = str(obj.get("actual_handoff", "")).strip()
+    reason = str(obj.get("reason", "")).strip() or "LLM did not provide a reason"
+    if actual not in ("是", "否"):
+        raise RuntimeError(f"LLM returned invalid actual_handoff: {obj}")
+    return actual == "是", reason
+
+
 def build_transcript(messages: list[dict]) -> str:
     lines: list[str] = []
     for m in messages:
@@ -328,6 +373,9 @@ def evaluate_case(
     wait_s: float,
     *,
     enable_llm_intent_tag: bool,
+    whatsapp_id: str | None = None,
+    sender_name: str | None = None,
+    min_outbound_count: int = 0,
 ) -> dict:
     case_id = (row.get("用例ID") or "").strip()
     case_name = (row.get("用例名称") or "").strip()
@@ -371,8 +419,13 @@ def evaluate_case(
             "notes": "empty input",
         }
 
-    wa = f"kb-{uuid.uuid4().hex[:10]}@s.whatsapp.net"
-    st, wh = client.webhook(channel, wa, user_text, sender_name=case_id or "KB-METRIC")
+    wa = whatsapp_id or f"kb-{uuid.uuid4().hex[:10]}@s.whatsapp.net"
+    st, wh = client.webhook(
+        channel,
+        wa,
+        user_text,
+        sender_name=sender_name or case_id or "KB-METRIC",
+    )
     wh_ok = st == 200 and (wh.get("data") or {}).get("status") == "success"
     poll_wait = max(wait_s, 8.0) if expected_handoff == "true" else max(wait_s, 4.0)
     sess, msgs, conv, texts = poll_turn_state(
@@ -380,11 +433,11 @@ def evaluate_case(
         bl,
         wa,
         wait_s=poll_wait,
-        expect_handoff=(expected_handoff == "true"),
+        expect_handoff=False,
         require_outbound=(expected_handoff != "true"),
+        min_outbound_count=min_outbound_count,
     )
     task_type = session_task_type(sess)
-    handoff_ok, handoff_notes = verify_local_handoff(conv)
     resp_ms = first_response_ms(msgs, fallback_wait_ms=wait_s * 1000)
     transcript = build_transcript(msgs)
     trace_info = resolve_trace_tag_and_intent(client, bl, wa)
@@ -405,32 +458,52 @@ def evaluate_case(
     trace_handoff_bool = trace_auth["trace_handoff_flag"] == 1 if trace_auth["trace_handoff_flag"] is not None else None
     trace_knowledge_bool = trace_auth["trace_knowledge_hit"] == 1 if trace_auth["trace_knowledge_hit"] is not None else None
 
+    actual_handoff_bool = trace_handoff_bool
+    handoff_source = "trace.handoff_flag"
+    if actual_handoff_bool is None:
+        try:
+            actual_handoff_bool, handoff_reason = llm_judge_handoff(
+                case_id=case_id,
+                case_name=case_name,
+                user_cn=input_cn,
+                user_en=input_en,
+                transcript=transcript,
+            )
+            handoff_source = "llm"
+            notes.append(f"handoff by LLM: {handoff_reason}")
+        except (LlmConfigError, RuntimeError) as e:
+            handoff_source = "unavailable"
+            notes.append(f"handoff LLM unavailable: {str(e)[:160]}")
+
     if not wh_ok:
         business_result = "FAIL"
         notes.append(f"webhook http={st}")
     else:
         if expected_handoff == "true":
-            if trace_handoff_bool is not None:
-                handoff_ok_final = trace_handoff_bool
-                notes.append("handoff by trace_handoff_flag")
+            if actual_handoff_bool is not None:
+                handoff_ok_final = actual_handoff_bool
+                notes.append(f"handoff source={handoff_source}")
             else:
-                handoff_ok_final = handoff_ok
-            handoff_check = "PASS" if handoff_ok_final else "FAIL"
+                handoff_ok_final = None
+            handoff_check = "PASS" if handoff_ok_final is True else ("FAIL" if handoff_ok_final is False else "NA")
             knowledge_hit = "NA"
-            if not handoff_ok_final:
+            if handoff_ok_final is None:
+                notes.append("handoff result unavailable")
+            elif not handoff_ok_final:
                 business_result = "FAIL"
-                notes.append("expected LOCAL handoff")
-                notes.extend(handoff_notes)
+                notes.append("actual handoff did not match expected value")
         elif expected_handoff == "false":
-            if trace_handoff_bool is not None:
-                no_handoff = not trace_handoff_bool
-                notes.append("handoff by trace_handoff_flag")
+            if actual_handoff_bool is not None:
+                no_handoff = not actual_handoff_bool
+                notes.append(f"handoff source={handoff_source}")
             else:
-                no_handoff = not handoff_ok
-            handoff_check = "PASS" if no_handoff else "FAIL"
-            if not no_handoff:
+                no_handoff = None
+            handoff_check = "PASS" if no_handoff is True else ("FAIL" if no_handoff is False else "NA")
+            if no_handoff is None:
+                notes.append("handoff_flag unavailable in trace log")
+            elif not no_handoff:
                 business_result = "FAIL"
-                notes.append("unexpected LOCAL handoff")
+                notes.append("trace handoff_flag indicated handoff")
             elif not texts:
                 business_result = "FAIL"
                 knowledge_hit = "FAIL"
@@ -454,30 +527,35 @@ def evaluate_case(
                 knowledge_hit = "PASS"
         else:
             # 待确认：允许 handoff 或 FAQ 回复
-            handoff_cond = trace_handoff_bool if trace_handoff_bool is not None else handoff_ok
-            if handoff_cond:
+            handoff_cond = actual_handoff_bool
+            if handoff_cond is True:
                 handoff_check = "PASS"
                 knowledge_hit = "NA"
-            elif texts:
+            elif handoff_cond is False:
                 handoff_check = "PASS"
-                if trace_knowledge_bool is not None:
-                    knowledge_hit = "PASS" if trace_knowledge_bool else "FAIL"
-                    if not trace_knowledge_bool:
-                        business_result = "FAIL"
-                        notes.append("trace knowledge_hit=0 (conditional)")
-                elif expected_facts:
-                    hit = facts_match(texts, expected_facts)
-                    knowledge_hit = "PASS" if hit else "FAIL"
-                    if not hit:
-                        business_result = "FAIL"
-                        notes.append("conditional case missing expected facts")
+                if texts:
+                    if trace_knowledge_bool is not None:
+                        knowledge_hit = "PASS" if trace_knowledge_bool else "FAIL"
+                        if not trace_knowledge_bool:
+                            business_result = "FAIL"
+                            notes.append("trace knowledge_hit=0 (conditional)")
+                    elif expected_facts:
+                        hit = facts_match(texts, expected_facts)
+                        knowledge_hit = "PASS" if hit else "FAIL"
+                        if not hit:
+                            business_result = "FAIL"
+                            notes.append("conditional case missing expected facts")
+                    else:
+                        knowledge_hit = "PASS"
                 else:
-                    knowledge_hit = "PASS"
+                    business_result = "FAIL"
+                    knowledge_hit = "FAIL"
+                    notes.append("conditional case with no handoff_flag and no outbound")
             else:
                 business_result = "FAIL"
-                handoff_check = "FAIL"
-                knowledge_hit = "FAIL"
-                notes.append("conditional case with no handoff and no outbound")
+                handoff_check = "NA"
+                knowledge_hit = "NA"
+                notes.append("handoff_flag unavailable in trace log")
 
     if not observed_tag_norm:
         it_acc, it_rec, it_reason, it_source = "是", "", "actual_tag_empty_default_match", "empty_default"
@@ -497,6 +575,11 @@ def evaluate_case(
     else:
         it_acc, it_rec, it_reason, it_source = "待确认", "", "llm_disabled_non_empty_tag", "llm_disabled"
 
+    # Knowledge-hit is an independent trace metric. Do not downgrade it when
+    # the bot reply is delayed, missing, or otherwise fails business checks.
+    if trace_knowledge_bool is not None:
+        knowledge_hit = "PASS" if trace_knowledge_bool else "FAIL"
+
     return {
         "case_id": case_id,
         "case_name": case_name,
@@ -510,6 +593,7 @@ def evaluate_case(
         "knowledge_hit": knowledge_hit,
         "handoff_check": handoff_check,
         "知识库是否命中": "是" if knowledge_hit == "PASS" else ("否" if knowledge_hit == "FAIL" else "NA"),
+        "知识库是否命中正确": "",
         "客户标签是否准确": it_acc,
         "回复是否准确": "是" if business_result == "PASS" else "否",
         "执行结果": "PASS" if business_result == "PASS" and wh_ok else "FAIL",
@@ -531,8 +615,8 @@ def evaluate_case(
         "客户标签是否准确": it_acc,
         "日志转人工": yesno_text(trace_handoff_bool) if trace_handoff_bool is not None else "",
         "转人工是否准确": (
-            "是" if ((trace_handoff_bool is True) == (expected_handoff == "true")) else "否"
-        ) if trace_handoff_bool is not None and expected_handoff in ("true", "false") else "待确认",
+            "是" if ((actual_handoff_bool is True) == (expected_handoff == "true")) else "否"
+        ) if actual_handoff_bool is not None and expected_handoff in ("true", "false") else "待确认",
         "实际回复内容（英文）": texts[-1] if texts else "",
         "服务端真实耗时": trace_auth["trace_latency_ms"] if trace_auth["trace_latency_ms"] is not None else "",
         "接口响应时长": int(resp_ms) if resp_ms is not None else "",
@@ -545,6 +629,7 @@ def evaluate_case(
         "whatsapp_id": wa,
         "session_id": session_id_from(sess, msgs, conv),
         "outbound_preview": texts[-1][:160] if texts else "",
+        "outbound_count": len(texts),
         "notes": "; ".join(notes) if notes else "OK",
     }
 
@@ -623,7 +708,7 @@ def write_outputs(run_id: str, executed_at: str, source_csv: Path, results: list
     fields = [
         "case_id", "case_name", "input_cn", "input_en", "expected_handoff",
         "status", "automation_result", "business_result", "reply_check",
-        "knowledge_hit", "handoff_check", "知识库是否命中", "日志客户标签", "客户标签是否准确",
+        "knowledge_hit", "handoff_check", "知识库是否命中", "知识库是否命中正确", "日志客户标签", "客户标签是否准确",
         "日志转人工", "转人工是否准确", "实际回复内容（英文）", "回复是否准确",
         "服务端真实耗时", "接口响应时长", "执行结果", "备注",
         "actual_intent_tag_raw", "actual_intent_tag_norm", "actual_intent_tag_source",
@@ -631,7 +716,7 @@ def write_outputs(run_id: str, executed_at: str, source_csv: Path, results: list
         "trace_detected_intent", "trace_knowledge_hit", "trace_handoff_flag", "trace_latency_ms",
         "trace_tag_reason", "trace_tag_event_id", "trace_intent_event_id",
         "trace_knowledge_hit_event_id", "trace_handoff_flag_event_id", "trace_latency_event_id",
-        "response_ms", "task_type", "whatsapp_id", "session_id", "outbound_preview", "notes",
+        "response_ms", "task_type", "whatsapp_id", "session_id", "outbound_preview", "outbound_count", "notes",
     ]
     with result_csv.open("w", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields)
@@ -703,6 +788,7 @@ def write_updated_source_csv(run_id: str, source_rows: list[dict], results: list
         rr = by_id.get(cid)
         if rr:
             new_row["日志客户标签"] = rr.get("日志客户标签", "") or ""
+            new_row["知识库是否命中正确"] = rr.get("知识库是否命中正确", "") or ""
             new_row["客户标签是否准确"] = rr.get("客户标签是否准确", "") or ""
             new_row["日志转人工"] = rr.get("日志转人工", "") or ""
             new_row["转人工是否准确"] = rr.get("转人工是否准确", "") or ""
@@ -734,8 +820,8 @@ def main():
     )
     parser.add_argument("--channel", default="ch_wa_01")
     parser.add_argument("--business-line-id", type=int, default=1)
-    parser.add_argument("--wait", type=float, default=3.0)
-    parser.add_argument("--limit", type=int, default=0, help="仅执行前 N 条，0 表示全量")
+    parser.add_argument("--wait", type=float, default=50.0)
+    parser.add_argument("--limit", type=int, default=10, help="最多执行 N 条；默认 10，超过 10 条将拒绝执行")
     parser.add_argument(
         "--disable-llm-intent-tag",
         action="store_true",
@@ -750,8 +836,9 @@ def main():
         raise FileNotFoundError(f"source csv not found: {source}")
 
     rows = load_rows(source)
-    if args.limit and args.limit > 0:
-        rows = rows[: args.limit]
+    if args.limit < 1 or args.limit > 10:
+        raise ValueError("单次最多执行10条用例，请将 --limit 设置为 1-10")
+    rows = rows[: args.limit]
     if not rows:
         print("no rows loaded")
         return
@@ -765,21 +852,58 @@ def main():
 
     results = []
     enable_llm_intent_tag = not args.disable_llm_intent_tag
+    rows_by_id = {(r.get("用例ID") or "").strip(): r for r in rows}
+    executed_case_context: dict[str, dict] = {}
     for idx, row in enumerate(rows, start=1):
-        results.append(
-            evaluate_case(
-                client,
-                row,
-                args.channel,
-                args.business_line_id,
-                args.wait,
-                enable_llm_intent_tag=enable_llm_intent_tag,
-            )
-        )
-        if idx % 20 == 0:
+        case_id = (row.get("用例ID") or "").strip()
+        match = CASE_ID_RE.match(case_id)
+        try:
+            if match and match.group(2).startswith("H-C"):
+                prerequisite = rows_by_id.get(f"{match.group(1)}-N")
+                if not prerequisite:
+                    raise RuntimeError(f"missing prerequisite {match.group(1)}-N for {case_id}")
+                prefill = executed_case_context.get(f"{match.group(1)}-N")
+                if prefill is None:
+                    prefill = evaluate_case(
+                        client,
+                        prerequisite,
+                        args.channel,
+                        args.business_line_id,
+                        args.wait,
+                        enable_llm_intent_tag=enable_llm_intent_tag,
+                        sender_name=case_id,
+                    )
+                if prefill.get("status") == "SKIP":
+                    raise RuntimeError(f"prerequisite case skipped for {case_id}")
+                result = evaluate_case(
+                    client,
+                    row,
+                    args.channel,
+                    args.business_line_id,
+                    args.wait,
+                    enable_llm_intent_tag=enable_llm_intent_tag,
+                    whatsapp_id=prefill.get("whatsapp_id") or None,
+                    sender_name=case_id,
+                    min_outbound_count=int(prefill.get("outbound_count") or 0),
+                )
+            else:
+                result = evaluate_case(
+                    client,
+                    row,
+                    args.channel,
+                    args.business_line_id,
+                    args.wait,
+                    enable_llm_intent_tag=enable_llm_intent_tag,
+                    sender_name=case_id or None,
+                )
+        except Exception as exc:
+            raise RuntimeError(f"执行用例 {case_id} 时发生框架异常，已停止后续执行: {exc}") from exc
+        results.append(result)
+        if case_id.endswith("-N"):
+            executed_case_context[case_id] = result
+        if idx % 10 == 0:
             print(f"progress {idx}/{len(rows)}", flush=True)
         time.sleep(0.1)
-
     summary = summarize(results)
     outputs = write_outputs(run_id, executed_at, source, results, summary)
     updated_source_csv = write_updated_source_csv(run_id, rows, results)

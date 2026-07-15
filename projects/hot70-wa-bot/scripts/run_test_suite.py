@@ -20,6 +20,7 @@ DATA = ROOT / "data"
 DEFAULT_BASE = "https://uat-paas.transsion.com/whatsapp-bot-service/api"
 DEFAULT_USER = "admin"
 DEFAULT_PASS = "admin123456"
+WEBHOOK_MAX_ATTEMPTS = 3
 
 
 class Client:
@@ -76,17 +77,26 @@ class Client:
             method="POST",
             headers={"Content-Type": "application/json", "Accept": "application/json"},
         )
-        try:
-            with request.urlopen(req, timeout=60) as resp:
-                raw = resp.read().decode("utf-8")
-                return resp.status, json.loads(raw) if raw else {}
-        except error.HTTPError as e:
-            raw = e.read().decode("utf-8", errors="replace")
+        for attempt in range(WEBHOOK_MAX_ATTEMPTS):
             try:
-                body = json.loads(raw)
-            except json.JSONDecodeError:
-                body = {"raw": raw}
-            return e.code, body
+                with request.urlopen(req, timeout=60) as resp:
+                    raw = resp.read().decode("utf-8")
+                    return resp.status, json.loads(raw) if raw else {}
+            except error.HTTPError as e:
+                raw = e.read().decode("utf-8", errors="replace")
+                try:
+                    body = json.loads(raw)
+                except json.JSONDecodeError:
+                    body = {"raw": raw}
+                if e.code >= 500 and attempt + 1 < WEBHOOK_MAX_ATTEMPTS:
+                    time.sleep(0.6 * (attempt + 1))
+                    continue
+                return e.code, body
+            except (error.URLError, ConnectionResetError, TimeoutError, OSError) as e:
+                if attempt + 1 >= WEBHOOK_MAX_ATTEMPTS:
+                    return 599, {"error": str(e), "attempts": WEBHOOK_MAX_ATTEMPTS}
+                time.sleep(0.6 * (attempt + 1))
+        return 599, {"error": "webhook retry limit exceeded", "attempts": WEBHOOK_MAX_ATTEMPTS}
 
     def session(self, business_line_id: int, whatsapp_id: str) -> dict:
         _, data = self._call("GET", f"/business-lines/{business_line_id}/agent/session/{whatsapp_id}")
