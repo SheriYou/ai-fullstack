@@ -303,7 +303,12 @@ def main():
     print("LOGIN OK", flush=True)
 
     print("running formal test cases (verify_profile)...", flush=True)
-    formal = run_all_formal_cases(client, channel, bl, max(wait, 4.0))
+    try:
+        formal = run_all_formal_cases(client, channel, bl, max(wait, 4.0))
+    except RuntimeError as e:
+        print(f"FORMAL RUN STOPPED: {e}", file=sys.stderr)
+        print("resume: set FORMAL_RESUME=1 and rerun this script", file=sys.stderr)
+        sys.exit(2)
     fp = sum(1 for r in formal if r.get("business_result") == "PASS")
     ff = sum(1 for r in formal if r.get("business_result") == "FAIL")
     print(f"formal done pass={fp} fail={ff} partial={sum(1 for r in formal if r.get('business_result')=='PARTIAL')}", flush=True)

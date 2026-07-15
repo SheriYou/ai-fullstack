@@ -75,25 +75,6 @@ def normalize_intent_tag(raw: str) -> str:
     return INTENT_TAG_ALIASES.get(v, "")
 
 
-def conversation_tag(conv: dict | None) -> str:
-    if not conv:
-        return ""
-    tags = conv.get("tags")
-    if isinstance(tags, list):
-        for t in tags:
-            if isinstance(t, str):
-                n = normalize_intent_tag(t)
-                if n:
-                    return n
-    for k in ("customer_tag", "customerTag", "intent_tag", "intentTag"):
-        v = conv.get(k)
-        if isinstance(v, str):
-            n = normalize_intent_tag(v)
-            if n:
-                return n
-    return ""
-
-
 def parse_trace_records(payload: dict) -> list[dict]:
     if not isinstance(payload, dict):
         return []
@@ -251,40 +232,6 @@ def extract_expected_facts(expected_result: str) -> str:
     return "|".join(lines[:8])
 
 
-def infer_expected_tag_rule(user_cn: str, user_en: str, transcript: str) -> str:
-    cn = (user_cn or "") + " " + (transcript or "")
-    en = ((user_en or "") + " " + (transcript or "")).lower()
-    if any(k in cn for k in ("已经提机", "已提机", "已提货", "已取机")) or any(
-        k in en for k in ("already picked up", "have already picked up", "picked up")
-    ):
-        return "已提交"
-    preordered = any(k in cn for k in ("已经预订", "已预订", "已经预约", "已预约")) or any(
-        k in en for k in ("already preordered", "already pre-order", "already booked")
-    )
-    not_picked = any(k in cn for k in ("未提机", "没提机", "尚未提机", "还未提机", "还没提")) or any(
-        k in en for k in ("not picked up", "haven't picked up", "have not picked up")
-    )
-    if preordered and not_picked:
-        return "已预定未提机"
-    if any(k in cn for k in ("只想领福利", "只领福利", "先领福利")) or any(
-        k in en for k in ("only want benefits", "only want to claim", "just want benefits")
-    ):
-        return "未预定低意向"
-    if any(k in cn for k in ("分期怎么买", "想分期", "我想买", "怎么买", "想购买", "想入手", "咨询配置", "问配置")) or any(
-        k in en for k in (
-            "how can i buy in installments",
-            "how to buy in installments",
-            "can i pay in installments",
-            "i want to buy",
-            "i want to purchase",
-            "specification",
-            "specifications",
-        )
-    ):
-        return "未预定高意向"
-    return ""
-
-
 def extract_json_object(text: str) -> dict | None:
     t = (text or "").strip()
     if not t:
@@ -320,7 +267,7 @@ def llm_judge_intent_tag(
     is_accurate: 是 / 否
     """
     system_prompt = (
-        "你是测试评审员。只判断“实际识别的意图标签”是否与聊天上下文一致。"
+        "你是测试评审员。只判断“日志客户标签”是否与聊天上下文一致。"
         "可用标签仅有：已预定未提机、未预定高意向、未预定低意向、已提交、空。"
         "如果上下文没有证据表明用户已预定/已提机，就不能判为已预定未提机或已提交。"
         "仅输出 JSON，不要输出额外文本。"
@@ -331,8 +278,8 @@ def llm_judge_intent_tag(
         f"用户问题(中文): {user_cn}\n"
         f"用户问题(英文): {user_en}\n"
         f"聊天上下文(含机器人回复):\n{transcript}\n\n"
-        f"实际识别的意图标签(raw): {actual_tag_raw}\n"
-        f"实际识别的意图标签(normalized): {actual_tag_norm or '空'}\n\n"
+        f"日志客户标签(raw): {actual_tag_raw}\n"
+        f"日志客户标签(normalized): {actual_tag_norm or '空'}\n\n"
         "请输出 JSON："
         '{"is_accurate":"是或否","recommended_tag":"已预定未提机/未预定高意向/未预定低意向/已提交/空","reason":"一句话理由"}'
     )
@@ -359,20 +306,6 @@ def llm_judge_intent_tag(
     if not reason:
         reason = "LLM 未提供理由"
     return acc, rec, reason, "llm"
-
-
-def rule_judge_intent_tag(
-    *,
-    user_cn: str,
-    user_en: str,
-    transcript: str,
-    actual_tag_norm: str,
-) -> tuple[str, str, str, str]:
-    expected = infer_expected_tag_rule(user_cn, user_en, transcript)
-    accurate = (actual_tag_norm == expected) if expected else (actual_tag_norm == "")
-    acc = "是" if accurate else "否"
-    reason = f"rule_expected={expected or '空'}; actual={actual_tag_norm or '空'}"
-    return acc, expected, reason, "rule_fallback"
 
 
 def build_transcript(messages: list[dict]) -> str:
@@ -403,7 +336,7 @@ def evaluate_case(
     user_text = input_en or input_cn
     expected_handoff = normalize_handoff(row.get("转人工预期") or "")
     expected_facts = extract_expected_facts(row.get("预期结果") or "")
-    sheet_actual_tag_raw = (row.get("实际识别的意图标签") or "").strip()
+    sheet_actual_tag_raw = (row.get("日志客户标签") or "").strip()
     sheet_actual_tag_norm = normalize_intent_tag(sheet_actual_tag_raw)
 
     if not user_text:
@@ -417,15 +350,19 @@ def evaluate_case(
             "knowledge_hit": "NA",
             "handoff_check": "NA",
             "知识库是否命中": "NA",
-            "意图标签是否准确": "NA",
+            "客户标签是否准确": "NA",
+            "日志客户标签": "",
+            "日志转人工": "",
+            "转人工是否准确": "NA",
+            "实际回复内容（英文）": "",
             "回复是否准确": "NA",
             "actual_intent_tag_raw": "",
             "actual_intent_tag_norm": "",
             "actual_intent_tag_source": "none",
             "trace_detected_intent": "",
             "trace_tag_reason": "",
-            "实际识别的意图标签": "",
-            "意图标签是否准确": "NA",
+            "日志客户标签": "",
+            "客户标签是否准确": "NA",
             "intent_tag_accuracy": "NA",
             "intent_tag_recommended": "",
             "intent_tag_reason": "empty input",
@@ -452,15 +389,10 @@ def evaluate_case(
     transcript = build_transcript(msgs)
     trace_info = resolve_trace_tag_and_intent(client, bl, wa)
     trace_auth = resolve_trace_authoritative_fields(client, bl, wa)
-    conv_tag_norm = conversation_tag(conv)
     if trace_auth["trace_customer_tag_raw"]:
         observed_tag_raw = trace_auth["trace_customer_tag_raw"]
         observed_tag_norm = trace_auth["trace_customer_tag_norm"]
         observed_tag_source = "trace_log.TAG_APPLIED"
-    elif conv_tag_norm:
-        observed_tag_raw = conv_tag_norm
-        observed_tag_norm = conv_tag_norm
-        observed_tag_source = "conversations.tags"
     else:
         observed_tag_raw = ""
         observed_tag_norm = ""
@@ -547,7 +479,9 @@ def evaluate_case(
                 knowledge_hit = "FAIL"
                 notes.append("conditional case with no handoff and no outbound")
 
-    if enable_llm_intent_tag:
+    if not observed_tag_norm:
+        it_acc, it_rec, it_reason, it_source = "是", "", "actual_tag_empty_default_match", "empty_default"
+    elif enable_llm_intent_tag:
         try:
             it_acc, it_rec, it_reason, it_source = llm_judge_intent_tag(
                 case_id=case_id,
@@ -559,20 +493,9 @@ def evaluate_case(
                 transcript=transcript,
             )
         except (LlmConfigError, RuntimeError) as e:
-            it_acc, it_rec, it_reason, it_source = rule_judge_intent_tag(
-                user_cn=input_cn,
-                user_en=input_en,
-                transcript=transcript,
-                actual_tag_norm=observed_tag_norm,
-            )
-            it_reason = f"{it_reason}; llm_error={str(e)[:160]}"
+            it_acc, it_rec, it_reason, it_source = "待确认", "", f"llm_unavailable:{str(e)[:160]}", "llm_unavailable"
     else:
-        it_acc, it_rec, it_reason, it_source = rule_judge_intent_tag(
-            user_cn=input_cn,
-            user_en=input_en,
-            transcript=transcript,
-            actual_tag_norm=observed_tag_norm,
-        )
+        it_acc, it_rec, it_reason, it_source = "待确认", "", "llm_disabled_non_empty_tag", "llm_disabled"
 
     return {
         "case_id": case_id,
@@ -587,8 +510,10 @@ def evaluate_case(
         "knowledge_hit": knowledge_hit,
         "handoff_check": handoff_check,
         "知识库是否命中": "是" if knowledge_hit == "PASS" else ("否" if knowledge_hit == "FAIL" else "NA"),
-        "意图标签是否准确": it_acc,
+        "客户标签是否准确": it_acc,
         "回复是否准确": "是" if business_result == "PASS" else "否",
+        "执行结果": "PASS" if business_result == "PASS" and wh_ok else "FAIL",
+        "备注": "; ".join(notes) if notes else "OK",
         "actual_intent_tag_raw": observed_tag_raw,
         "actual_intent_tag_norm": observed_tag_norm,
         "actual_intent_tag_source": observed_tag_source,
@@ -602,8 +527,15 @@ def evaluate_case(
         "trace_knowledge_hit_event_id": trace_auth["trace_knowledge_hit_event_id"],
         "trace_handoff_flag_event_id": trace_auth["trace_handoff_flag_event_id"],
         "trace_latency_event_id": trace_auth["trace_latency_event_id"],
-        "实际识别的意图标签": observed_tag_norm or observed_tag_raw,
-        "意图标签是否准确": it_acc,
+        "日志客户标签": observed_tag_raw or observed_tag_norm,
+        "客户标签是否准确": it_acc,
+        "日志转人工": yesno_text(trace_handoff_bool) if trace_handoff_bool is not None else "",
+        "转人工是否准确": (
+            "是" if ((trace_handoff_bool is True) == (expected_handoff == "true")) else "否"
+        ) if trace_handoff_bool is not None and expected_handoff in ("true", "false") else "待确认",
+        "实际回复内容（英文）": texts[-1] if texts else "",
+        "服务端真实耗时": trace_auth["trace_latency_ms"] if trace_auth["trace_latency_ms"] is not None else "",
+        "接口响应时长": int(resp_ms) if resp_ms is not None else "",
         "intent_tag_accuracy": it_acc,
         "intent_tag_recommended": it_rec,
         "intent_tag_reason": it_reason,
@@ -640,16 +572,16 @@ def summarize(results: list[dict]) -> dict:
     reply_pass = sum(1 for r in reply_rows if _yn(r.get("回复是否准确", "") or r.get("reply_check", "")) == "是")
     reply_rate = (reply_pass / len(reply_rows) * 100) if reply_rows else None
 
-    # 按需求：转人工准确率使用【回复是否准确】计算
-    ho_rows = reply_rows
-    ho_pass = reply_pass
+    ho_rows = [r for r in executed if _yn(r.get("转人工是否准确", "")) in ("是", "否")]
+    ho_pass = sum(1 for r in ho_rows if _yn(r.get("转人工是否准确", "")) == "是")
     ho_rate = (ho_pass / len(ho_rows) * 100) if ho_rows else None
 
-    intent_rows = [r for r in executed if _yn(r.get("意图标签是否准确", "") or r.get("intent_tag_accuracy", "")) in ("是", "否")]
-    intent_ok = sum(1 for r in intent_rows if _yn(r.get("意图标签是否准确", "") or r.get("intent_tag_accuracy", "")) == "是")
+    intent_rows = [r for r in executed if _yn(r.get("客户标签是否准确", "") or r.get("intent_tag_accuracy", "")) in ("是", "否")]
+    intent_ok = sum(1 for r in intent_rows if _yn(r.get("客户标签是否准确", "") or r.get("intent_tag_accuracy", "")) == "是")
     intent_rate = (intent_ok / len(intent_rows) * 100) if intent_rows else None
     intent_llm_n = sum(1 for r in intent_rows if r.get("intent_tag_source") == "llm")
-    intent_rule_n = sum(1 for r in intent_rows if r.get("intent_tag_source") == "rule_fallback")
+    intent_empty_default_n = sum(1 for r in intent_rows if r.get("intent_tag_source") == "empty_default")
+    intent_pending_n = sum(1 for r in executed if (r.get("intent_tag_accuracy") or "").strip() == "待确认")
 
     resp_vals = [float(r["response_ms"]) for r in executed if str(r.get("response_ms", "")).isdigit()]
     avg_resp = (sum(resp_vals) / len(resp_vals)) if resp_vals else None
@@ -673,7 +605,8 @@ def summarize(results: list[dict]) -> dict:
         "intent_tag_pass": intent_ok,
         "intent_tag_accuracy": round(intent_rate, 2) if intent_rate is not None else None,
         "intent_tag_llm": intent_llm_n,
-        "intent_tag_rule_fallback": intent_rule_n,
+        "intent_tag_empty_default": intent_empty_default_n,
+        "intent_tag_pending": intent_pending_n,
         "avg_response_ms": round(avg_resp, 1) if avg_resp is not None else None,
     }
 
@@ -690,7 +623,9 @@ def write_outputs(run_id: str, executed_at: str, source_csv: Path, results: list
     fields = [
         "case_id", "case_name", "input_cn", "input_en", "expected_handoff",
         "status", "automation_result", "business_result", "reply_check",
-        "knowledge_hit", "handoff_check", "知识库是否命中", "意图标签是否准确", "回复是否准确",
+        "knowledge_hit", "handoff_check", "知识库是否命中", "日志客户标签", "客户标签是否准确",
+        "日志转人工", "转人工是否准确", "实际回复内容（英文）", "回复是否准确",
+        "服务端真实耗时", "接口响应时长", "执行结果", "备注",
         "actual_intent_tag_raw", "actual_intent_tag_norm", "actual_intent_tag_source",
         "intent_tag_accuracy", "intent_tag_recommended", "intent_tag_source", "intent_tag_reason",
         "trace_detected_intent", "trace_knowledge_hit", "trace_handoff_flag", "trace_latency_ms",
@@ -727,15 +662,15 @@ def write_outputs(run_id: str, executed_at: str, source_csv: Path, results: list
         f"- 知识库命中率：{summary['kb_hit_rate']}% ({summary['kb_pass']}/{summary['kb_sample']})" if summary["kb_hit_rate"] is not None else "- 知识库命中率：—",
         f"- 回复准确率：{summary['reply_accuracy']}% ({summary['reply_pass']}/{summary['reply_sample']})" if summary["reply_accuracy"] is not None else "- 回复准确率：—",
         f"- 转人工准确率：{summary['handoff_accuracy']}% ({summary['handoff_pass']}/{summary['handoff_sample']})" if summary["handoff_accuracy"] is not None else "- 转人工准确率：—",
-        f"- 标签准确率：{summary['intent_tag_accuracy']}% ({summary['intent_tag_pass']}/{summary['intent_tag_sample']})" if summary["intent_tag_accuracy"] is not None else "- 标签准确率：—",
-        f"- 意图标签判定来源：LLM={summary['intent_tag_llm']}，规则回退={summary['intent_tag_rule_fallback']}",
+        f"- 客户标签准确率：{summary['intent_tag_accuracy']}% ({summary['intent_tag_pass']}/{summary['intent_tag_sample']})" if summary["intent_tag_accuracy"] is not None else "- 客户标签准确率：—",
+        f"- 客户标签判定来源：LLM={summary['intent_tag_llm']}，空标签默认匹配={summary['intent_tag_empty_default']}，待确认={summary['intent_tag_pending']}",
         f"- 平均响应：{summary['avg_response_ms']} ms" if summary["avg_response_ms"] is not None else "- 平均响应：—",
         "",
         "## 指标计算",
         "",
         "- 知识库命中率 = `知识库是否命中=是` 用例数 / `知识库是否命中 in (是, 否)` 用例数",
-        "- 标签准确率 = `意图标签是否准确=是` 用例数 / `意图标签是否准确 in (是, 否)` 用例数",
-        "- 转人工准确率 = `回复是否准确=是` 用例数 / `回复是否准确 in (是, 否)` 用例数",
+        "- 客户标签准确率 = `客户标签是否准确=是` 用例数 / `客户标签是否准确 in (是, 否)` 用例数",
+        "- 转人工准确率 = `转人工是否准确=是` 用例数 / `转人工是否准确 in (是, 否)` 用例数",
         "- 回复准确率 = `回复是否准确=是` 用例数 / `回复是否准确 in (是, 否)` 用例数",
         "",
         "## Fail Top30",
@@ -767,8 +702,16 @@ def write_updated_source_csv(run_id: str, source_rows: list[dict], results: list
         cid = (row.get("用例ID") or "").strip()
         rr = by_id.get(cid)
         if rr:
-            new_row["实际识别的意图标签"] = rr.get("实际识别的意图标签", "") or ""
-            new_row["意图标签是否准确"] = rr.get("意图标签是否准确", "") or ""
+            new_row["日志客户标签"] = rr.get("日志客户标签", "") or ""
+            new_row["客户标签是否准确"] = rr.get("客户标签是否准确", "") or ""
+            new_row["日志转人工"] = rr.get("日志转人工", "") or ""
+            new_row["转人工是否准确"] = rr.get("转人工是否准确", "") or ""
+            new_row["实际回复内容（英文）"] = rr.get("实际回复内容（英文）", "") or ""
+            new_row["执行结果"] = rr.get("执行结果", "") or ""
+            new_row["备注"] = rr.get("备注", "") or ""
+            for field in ("服务端真实耗时", "接口响应时长"):
+                if field in new_row:
+                    new_row[field] = rr.get(field, "") or ""
         rows_out.append(new_row)
 
     if rows_out:
@@ -796,7 +739,7 @@ def main():
     parser.add_argument(
         "--disable-llm-intent-tag",
         action="store_true",
-        help="关闭 LLM 意图标签准确性判定（仅用规则回退）",
+        help="关闭 LLM 后，非空意图标签会标记为待确认。",
     )
     args = parser.parse_args()
 

@@ -8,9 +8,16 @@ import argparse
 import csv
 import json
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+FRAMEWORK_ROOT = Path(__file__).resolve().parents[3]
+if str(FRAMEWORK_ROOT / "lib") not in sys.path:
+    sys.path.insert(0, str(FRAMEWORK_ROOT / "lib"))
+
+from llm_client import LlmConfigError, chat  # noqa: E402
+
 FAQ_CSV = ROOT / "prd" / "Hot 70 FAQ知识库_FAQ知识库_全部FAQ.csv"
 OUT_CSV = ROOT / "prd" / "Hot70_机器人_知识库指标测试.csv"
 REPORT_JSON = ROOT / "reports" / "kb-metrics-case-gen-summary.json"
@@ -43,13 +50,13 @@ OUT_FIELDS = [
     "是否使用新会话",
     "实际回复内容（英文）",
     "知识库是否命中",
-    "实际识别的意图标签",
-    "意图标签是否准确",
-    "转人工时机是否准确",
+    "日志客户标签",
+    "客户标签是否准确",
+    "日志转人工",
+    "转人工是否准确",
     "回复是否准确",
-    "回答置信度",
-    "置信度等级",
-    "置信度依据",
+    "服务端真实耗时",
+    "接口响应时长",
     "执行结果",
     "备注",
 ]
@@ -82,7 +89,9 @@ def normalize_space(s: str) -> str:
 
 def split_handoff_conditions(en_text: str, note_text: str, limit: int = 5) -> list[str]:
     parts: list[str] = []
-    raw_items = [normalize_space(note_text), normalize_space(en_text)]
+    en_text = normalize_space(en_text)
+    note_text = normalize_space(note_text)
+    raw_items = [en_text] if en_text else [note_text]
     for raw in raw_items:
         if not raw:
             continue
@@ -144,10 +153,97 @@ def empty_result_row() -> dict[str, str]:
     return {k: "" for k in OUT_FIELDS}
 
 
+def make_follow_up_cn(scene: str, base_q_cn: str) -> str:
+    scene = (scene or "").strip()
+    if not scene:
+        return f"我遇到这个情况，需要你帮我处理。"
+    # Ensure H-case prompt is a follow-up statement, not the same as base question.
+    if scene == (base_q_cn or "").strip():
+        return f"我遇到这个情况：{scene}，该怎么处理？"
+    if re.search(r"[？?]$", scene):
+        return scene
+    return f"我遇到这个情况：{scene}"
+
+
+def make_follow_up_en(scene: str, base_q_en: str) -> str:
+    scene = (scene or "").strip()
+    base_q_en = (base_q_en or "").strip()
+    if not scene:
+        return "I have an issue with this case, can you help me check it?"
+    # Ensure H-case prompt is follow-up and not identical to base N question.
+    if scene.lower() == base_q_en.lower():
+        return f"I'm facing this issue: {scene}. What should I do next?"
+    if re.search(r"[?]$", scene):
+        return scene
+    return f"I'm facing this issue: {scene}. What should I do?"
+
+
+def has_handoff_hint_en(text: str) -> bool:
+    t = (text or "").lower()
+    # Avoid leaking handoff intent into test prompts.
+    banned = (
+        "human",
+        "agent",
+        "manual support",
+        "customer service",
+        "customer care",
+        "transfer",
+        "representative",
+        "connect me",
+    )
+    return any(x in t for x in banned)
+
+
+def llm_follow_up_en(scene: str, base_q_en: str, category: str) -> str:
+    scene = (scene or "").strip()
+    base_q_en = (base_q_en or "").strip()
+    system_prompt = (
+        "You are a QA test-case writer. "
+        "Generate exactly one natural English follow-up user question for chatbot testing. "
+        "It must clearly express the given scenario as a realistic user follow-up. "
+        "Output plain text only, one sentence, no bullets, no quotes."
+    )
+    user_prompt = (
+        f"Base question: {base_q_en}\n"
+        f"Category: {category}\n"
+        f"Condition scenario: {scene}\n\n"
+        "Constraints:\n"
+        "1) English only.\n"
+        "2) 8-28 words.\n"
+        "3) End with '?'.\n"
+        "4) Must NOT repeat the base question wording.\n"
+        "5) Must NOT mention human/agent/manual support/transfer/customer service.\n"
+    )
+    txt = chat(
+        [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        project_root=ROOT,
+        temperature=0,
+    )
+    out = (txt or "").strip().strip('"').strip("'")
+    out = re.sub(r"\s+", " ", out)
+    if not out:
+        raise RuntimeError("empty llm follow-up")
+    if out.lower() == base_q_en.lower():
+        raise RuntimeError("llm follow-up equals base question")
+    if has_handoff_hint_en(out):
+        raise RuntimeError("llm follow-up contains handoff hint")
+    if not out.endswith("?"):
+        out = out.rstrip(".! ") + "?"
+    return out[:220]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate KB metrics test cases from FAQ csv.")
     parser.add_argument("--faq-csv", default=str(FAQ_CSV))
     parser.add_argument("--out-csv", default=str(OUT_CSV))
+    parser.add_argument(
+        "--disable-llm-followup",
+        action="store_true",
+        help="Disable LLM generation for H-case English follow-up prompts.",
+    )
     args = parser.parse_args()
 
     faq_csv = Path(args.faq_csv)
@@ -164,6 +260,9 @@ def main() -> int:
     skipped: list[str] = []
     conditional_no_scene = 0
     faq_used = 0
+    llm_followup_used = 0
+    llm_followup_fallback = 0
+    llm_cache: dict[tuple[str, str, str], str] = {}
 
     case_no = 0
     for i, r in enumerate(rows, start=2):
@@ -223,6 +322,22 @@ def main() -> int:
                 conditional_no_scene += 1
             for j, scene in enumerate(scenes, start=1):
                 h_row = empty_result_row()
+                follow_cn = make_follow_up_cn(scene, q_cn)
+                if args.disable_llm_followup:
+                    follow_en = make_follow_up_en(scene, q_en)
+                    llm_followup_fallback += 1
+                else:
+                    key = (scene, q_en, cat)
+                    if key in llm_cache:
+                        follow_en = llm_cache[key]
+                    else:
+                        try:
+                            follow_en = llm_follow_up_en(scene, q_en, cat)
+                            llm_followup_used += 1
+                        except (LlmConfigError, RuntimeError):
+                            follow_en = make_follow_up_en(scene, q_en)
+                            llm_followup_fallback += 1
+                        llm_cache[key] = follow_en
                 h_row.update(
                     {
                         "用例ID": f"{base}-H-C{j:02d}",
@@ -246,8 +361,8 @@ def main() -> int:
                             "3) 当前仍保持同一会话；"
                             "4) 尚未发生人工接管。"
                         ),
-                        "测试数据": f"我遇到这个情况：{scene}",
-                        "测试数据（英文提问）": scene if re.search(r"[A-Za-z]", scene) else q_en,
+                        "测试数据": follow_cn,
+                        "测试数据（英文提问）": follow_en,
                         "转人工预期": "是",
                         "是否使用新会话": "否",
                     }
@@ -267,6 +382,8 @@ def main() -> int:
         "faq_used_rows": faq_used,
         "generated_cases": len(out_rows),
         "conditional_without_scene_rows": conditional_no_scene,
+        "llm_followup_used": llm_followup_used,
+        "llm_followup_fallback": llm_followup_fallback,
         "skipped_rows": skipped,
         "out_csv": str(out_csv),
     }
@@ -278,4 +395,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -1,0 +1,8 @@
+﻿"case_id","webhook_http","webhook_ok","outbound_total","outbound_new","conversation_status","handoff_target","task_type","reply_preview"
+"TC-H70-001-N","200","True","1","1","open","","KNOWLEDGE_EVIDENCE_REPLY","HOT 70 Pro 5G Key Specs:"
+"TC-H70-002-N","200","True","1","1","open","","KNOWLEDGE_EVIDENCE_REPLY","To participate in the pre-order event for the HOT 70 Pro 5G, please follow these steps:"
+"TC-H70-003-N","200","True","1","1","open","","KNOWLEDGE_EVIDENCE_REPLY","Pre-order Exclusive Benefits:"
+"TC-H70-004-N","200","True","1","1","open","","KNOWLEDGE_EVIDENCE_REPLY","Pickup Schedule:"
+"TC-H70-005-N","200","True","1","1","open","","KNOWLEDGE_EVIDENCE_REPLY","HOT 70 Pro 5G is available at 1,500+ Infinix stores nationwide, including:"
+"TC-H70-006-N","200","True","1","1","open","","KNOWLEDGE_EVIDENCE_REPLY","Yes! This is the official Infinix WhatsApp channel. We are an authorized Infinix service team."
+"TC-H70-007-N","200","True","1","1","open","","TRANSFER_FAILED_AI_FALLBACK","A human agent is not available right now, so I will keep helping you here. You can share more details, and I will do my "

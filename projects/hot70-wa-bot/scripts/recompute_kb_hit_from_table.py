@@ -7,7 +7,7 @@ consistency overrides.
 Base rule:
 - Authoritative trace priority (wa_message_trace_log):
   - `knowledge_hit` takes precedence for `知识库是否命中`
-  - `handoff_flag` takes precedence for `转人工时机是否准确`
+  - `handoff_flag` takes precedence for `转人工是否准确`
   - if trace is unavailable, fallback to deterministic table/KB matching rules below
 - Semantic lookup against KB table (allowing paraphrase/polish):
   - question source: user actual language field in case sheet
@@ -19,7 +19,7 @@ Base rule:
     `业务反馈` (fallback `回复（用户实际使用语种）`)
 
 Override rule (business confirmed):
-- If `转人工预期=是` and `转人工时机是否准确=是` (fallback template optional),
+- If `转人工预期=是` and `转人工是否准确=是` (fallback template optional),
   then force:
   - `知识库是否命中=是`
   - `回复是否准确=是`
@@ -27,13 +27,12 @@ Override rule (business confirmed):
 
 Execution result rule (business confirmed):
 - Recompute `执行结果` with key gates only (not strict all-fields):
-  - PASS: `回复是否准确=是` and `转人工时机是否准确=是` and no api/script error
+  - PASS: `回复是否准确=是` and `转人工是否准确=是` and no api/script error
   - FAIL: otherwise
 
 Notes:
 - `知识库是否命中` / `意图标签` fields are quality signals and do not
   directly fail `执行结果`.
-- `回答置信度` / `置信度等级` / `置信度依据` will be recomputed.
 - Optional row range can be applied via `--row-start/--row-end`
   (CSV line numbers, header is line 1).
 
@@ -261,7 +260,7 @@ def has_api_or_script_error(raw: str) -> bool:
 def has_any_execution_signal(row: dict) -> bool:
     keys = [
         "回复是否准确",
-        "转人工时机是否准确",
+        "转人工是否准确",
         "实际回复内容（英文）",
         "缺陷记录",
         "知识库是否命中",
@@ -276,12 +275,12 @@ def recompute_execution_result(row: dict) -> str:
         return old
 
     reply_raw = yesno_to_bool(row.get("回复是否准确", ""))
-    handoff_raw = yesno_to_bool(row.get("转人工时机是否准确", ""))
+    handoff_raw = yesno_to_bool(row.get("转人工是否准确", ""))
     api_or_script_error = has_api_or_script_error(row.get("缺陷记录", ""))
     if api_or_script_error:
         return "FAIL"
     if handoff_raw is None or reply_raw is None:
-        return "待确认"
+        return "NA"
     return "PASS" if (reply_raw is True and handoff_raw is True) else "FAIL"
 
 
@@ -536,62 +535,11 @@ def resolve_handoff_timing_accuracy(
         ok = inferred_actual == expected_handoff
         return yesno_text(ok), ok, f"task_type:{task_type}"
 
-    existing = (row.get("转人工时机是否准确") or row.get("杞汉宸ユ椂鏈烘槸鍚﹀噯纭?") or "").strip()
+    existing = (row.get("转人工是否准确") or "").strip()
     if existing in {"是", "否"}:
         return existing, yesno_to_bool(existing), "existing_value"
 
     return "待确认", None, "unknown"
-
-
-def recompute_confidence_fields(
-    row: dict,
-    *,
-    handoff_source: str = "",
-    reply_judge: str = "",
-) -> None:
-    reply_raw = yesno_to_bool(row.get("回复是否准确", ""))
-    reply_ok = reply_raw is True
-    handoff_raw = yesno_to_bool(row.get("转人工时机是否准确", ""))
-    kb_hit = yesno_to_bool(row.get("知识库是否命中", "")) is True
-    api_or_script_error = has_api_or_script_error(row.get("缺陷记录", ""))
-
-    score = 100
-    if api_or_script_error:
-        score -= 60
-    if handoff_raw is False:
-        score -= 40
-    elif handoff_raw is None:
-        score -= 20
-    if not reply_ok:
-        score -= 25
-    if reply_raw is None:
-        score -= 20
-    if not kb_hit:
-        score -= 15
-    if score < 5:
-        score = 5
-
-    exec_result = (row.get("执行结果") or "").strip()
-    step_http = extract_step_http(row.get("备注", ""))
-    uncertain = (handoff_raw is None) or (reply_raw is None) or (exec_result == "待确认")
-
-    row["回答置信度"] = str(score)
-    row["置信度等级"] = score_to_level(score, uncertain=uncertain)
-    evidence_bits = []
-    if handoff_source:
-        evidence_bits.append(f"handoff_source={handoff_source}")
-    if reply_judge:
-        evidence_bits.append(f"reply_judge={reply_judge}")
-    evidence_suffix = ("；" + "，".join(evidence_bits)) if evidence_bits else ""
-    row["置信度依据"] = (
-        "按统一规则评分："
-        f"执行结果={exec_result}, "
-        f"回复准确={'是' if reply_ok else '否'}, "
-        f"转人工时机准确={('是' if handoff_raw is True else ('否' if handoff_raw is False else '待确认'))}, "
-        f"step_http={step_http}。"
-        "知识库命中按FAQ文本5/转人工条件（英文）（关键词）+业务反馈语义比对判定。"
-        f"{evidence_suffix}"
-    )
 
 
 def normalize_text(value: str) -> str:
@@ -795,7 +743,6 @@ def recompute(
     reply_fixed_rows = 0
     defects_cleaned_rows = 0
     exec_changed_rows = 0
-    confidence_changed_rows = 0
     trace_knowledge_rows = 0
     trace_handoff_rows = 0
     handoff_task_type_rows = 0
@@ -860,7 +807,7 @@ def recompute(
             trace_payload=trace_payload,
             expected_handoff=expected_handoff,
         )
-        row["转人工时机是否准确"] = handoff_text
+        row["转人工是否准确"] = handoff_text
         if handoff_source == "trace_handoff_flag":
             trace_handoff_rows += 1
         elif handoff_source.startswith("task_type:"):
@@ -876,9 +823,6 @@ def recompute(
         old_reply_acc = (row.get("回复是否准确") or "").strip()
         old_defects = row.get("缺陷记录", "")
         old_exec = (row.get("执行结果") or "").strip()
-        old_score = (row.get("回答置信度") or "").strip()
-        old_level = (row.get("置信度等级") or "").strip()
-        old_basis = (row.get("置信度依据") or "").strip()
         has_bot_reply = bool(case_a_raw.strip())
         if enable_llm_reply_accuracy:
             try:
@@ -931,28 +875,14 @@ def recompute(
 
         row["知识库是否命中"] = new_value
         row["执行结果"] = recompute_execution_result(row)
-        recompute_confidence_fields(
-            row,
-            handoff_source=handoff_source,
-            reply_judge=reply_reason,
-        )
         if old_exec != (row.get("执行结果") or "").strip():
             exec_changed_rows += 1
-        if (
-            old_score != (row.get("回答置信度") or "").strip()
-            or old_level != (row.get("置信度等级") or "").strip()
-            or old_basis != (row.get("置信度依据") or "").strip()
-        ):
-            confidence_changed_rows += 1
 
         if (
             old_value != new_value
             or old_reply_acc != (row.get("回复是否准确") or "").strip()
             or (old_defects or "").strip() != (row.get("缺陷记录") or "").strip()
             or old_exec != (row.get("执行结果") or "").strip()
-            or old_score != (row.get("回答置信度") or "").strip()
-            or old_level != (row.get("置信度等级") or "").strip()
-            or old_basis != (row.get("置信度依据") or "").strip()
         ):
             changed_rows.append(
                 {
@@ -967,10 +897,6 @@ def recompute(
                     "new_defects": (row.get("缺陷记录") or "").strip(),
                     "old_exec": old_exec,
                     "new_exec": (row.get("执行结果") or "").strip(),
-                    "old_score": old_score,
-                    "new_score": (row.get("回答置信度") or "").strip(),
-                    "old_level": old_level,
-                    "new_level": (row.get("置信度等级") or "").strip(),
                     "测试数据（英文提问）": row.get("测试数据（英文提问）", ""),
                 }
             )
@@ -982,17 +908,15 @@ def recompute(
         "new_no": sum(1 for r in rows if (r.get("知识库是否命中") or "").strip() == "否"),
         "exec_pass_rows": sum(1 for r in rows if (r.get("执行结果") or "").strip() == "PASS"),
         "exec_fail_rows": sum(1 for r in rows if (r.get("执行结果") or "").strip() == "FAIL"),
-        "exec_pending_rows": sum(1 for r in rows if (r.get("执行结果") or "").strip() == "待确认"),
+        "exec_pending_rows": sum(1 for r in rows if (r.get("执行结果") or "").strip() in ("待确认", "NA")),
         "override_rows": override_rows,
         "reply_fixed_rows": reply_fixed_rows,
         "defects_cleaned_rows": defects_cleaned_rows,
         "exec_changed_rows": exec_changed_rows,
-        "confidence_changed_rows": confidence_changed_rows,
         "trace_knowledge_rows": trace_knowledge_rows,
         "trace_handoff_rows": trace_handoff_rows,
         "handoff_task_type_rows": handoff_task_type_rows,
         "handoff_unknown_rows": handoff_unknown_rows,
-        "confidence_pending_rows": sum(1 for r in rows if (r.get("置信度等级") or "").strip() == "待确认"),
         "row_start": row_start if row_start is not None else "",
         "row_end": row_end if row_end is not None else "",
         "kb_match_mode": "faq_text5_or_handoff_condition_en_keyword_then_business_feedback_semantic_compare",
@@ -1090,8 +1014,8 @@ def main() -> None:
     backup_path = None
     if not args.dry_run:
         if args.write_backup:
-            backup_path = result_csv.with_suffix(
-                f".kbhit-backup-{ts}{result_csv.suffix}"
+            backup_path = report_dir / (
+                f"{result_csv.stem}.kbhit-backup-{ts}{result_csv.suffix}"
             )
             shutil.copyfile(result_csv, backup_path)
 
@@ -1113,14 +1037,12 @@ def main() -> None:
     print(f"reply_fixed_rows={stats['reply_fixed_rows']}")
     print(f"defects_cleaned_rows={stats['defects_cleaned_rows']}")
     print(f"exec_changed_rows={stats['exec_changed_rows']}")
-    print(f"confidence_changed_rows={stats['confidence_changed_rows']}")
     print(f"trace_priority_enabled={trace_enabled}")
     print(f"trace_login_ok={trace_login_ok}")
     print(f"trace_knowledge_rows={stats['trace_knowledge_rows']}")
     print(f"trace_handoff_rows={stats['trace_handoff_rows']}")
     print(f"handoff_task_type_rows={stats['handoff_task_type_rows']}")
     print(f"handoff_unknown_rows={stats['handoff_unknown_rows']}")
-    print(f"confidence_pending_rows={stats['confidence_pending_rows']}")
     print(f"row_start={stats['row_start']}")
     print(f"row_end={stats['row_end']}")
     print(f"kb_match_mode={stats['kb_match_mode']}")

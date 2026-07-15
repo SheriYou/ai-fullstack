@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import csv
+import json
+import os
 import re
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 from case_executor import poll_turn_state, settle_outbound_count, user_message_from_input
@@ -18,6 +21,8 @@ DATA = ROOT / "data"
 
 # 共享会话：003-LOCAL 建立 handoff 后供 003b / 005 等使用
 _shared: dict = {}
+BATCH_ROOT = ROOT / "tmp" / "formal-batches"
+MAX_BATCH_SIZE = 20
 
 
 def parse_profile(raw: str) -> dict:
@@ -264,20 +269,184 @@ def load_cases() -> list[dict]:
 
 def run_smoke_formal_cases(client, channel: str, bl: int, wait: float) -> list[dict]:
     """仅执行 TC-SMOKE-*（verify_profile），保持 003-LOCAL → 003b 会话顺序。"""
-    global _shared
-    _shared = {}
     wait = max(wait, 12.0)
-    results = []
     cases = [c for c in load_cases() if str(c.get("id", "")).startswith("TC-SMOKE")]
-    for case in cases:
-        results.append(execute_case(client, channel, bl, wait, case))
-    return results
+    return _run_cases_in_batches(client, channel, bl, wait, cases, run_scope="smoke")
 
 
 def run_all_formal_cases(client, channel: str, bl: int, wait: float) -> list[dict]:
+    return _run_cases_in_batches(client, channel, bl, wait, load_cases(), run_scope="full")
+
+
+def _run_cases_in_batches(
+    client,
+    channel: str,
+    bl: int,
+    wait: float,
+    cases: list[dict],
+    run_scope: str,
+) -> list[dict]:
     global _shared
     _shared = {}
-    results = []
-    for case in load_cases():
-        results.append(execute_case(client, channel, bl, wait, case))
+    batch_size = _resolve_batch_size()
+    stop_on_fail = _truthy(os.getenv("FORMAL_STOP_ON_FAIL", "1"))
+    resume = _truthy(os.getenv("FORMAL_RESUME", "0"))
+
+    run_dir, cached_results = _prepare_batch_run(run_scope, resume)
+    _hydrate_shared_from_completed(client, bl, cached_results)
+    completed_ids = {r.get("case_id", "") for r in cached_results}
+    pending_ids = {c.get("id", "") for c in cases if c.get("id", "") not in completed_ids}
+
+    if not pending_ids:
+        _write_run_meta(run_dir, run_scope, batch_size, len(cases), "completed", "")
+        return cached_results
+
+    total = len(cases)
+    results = list(cached_results)
+    total_batches = (total + batch_size - 1) // batch_size
+    executed = len(cached_results)
+    while executed < total:
+        batch_index = executed // batch_size + 1
+        batch_end = min(batch_index * batch_size, total)
+        batch_case_ids = [c["id"] for c in cases[executed:batch_end]]
+        batch_cases = [c for c in cases[executed:batch_end] if c["id"] in pending_ids]
+        batch_results: list[dict] = []
+
+        for case in batch_cases:
+            row = execute_case(client, channel, bl, wait, case)
+            batch_results.append(row)
+            results.append(row)
+            if stop_on_fail and _is_failure(row):
+                _write_batch_cache(run_dir, batch_index, batch_case_ids, batch_results, interrupted=True)
+                _write_run_meta(run_dir, run_scope, batch_size, total, "interrupted", row.get("case_id", ""))
+                raise RuntimeError(
+                    f"case_failed_and_stopped case={row.get('case_id','')} "
+                    f"automation={row.get('automation_result','')} business={row.get('business_result','')}"
+                )
+
+        _write_batch_cache(run_dir, batch_index, batch_case_ids, batch_results, interrupted=False)
+        _write_run_meta(run_dir, run_scope, batch_size, total, "running", "")
+        executed = batch_end
+        print(
+            f"[formal-batch] {run_scope} batch {batch_index}/{total_batches} done "
+            f"executed={executed}/{total}",
+            flush=True,
+        )
+
+    _write_run_meta(run_dir, run_scope, batch_size, total, "completed", "")
     return results
+
+
+def _resolve_batch_size() -> int:
+    raw = (os.getenv("FORMAL_CASE_BATCH_SIZE", "") or "").strip()
+    if raw.isdigit():
+        n = int(raw)
+        if n > 0:
+            return min(n, MAX_BATCH_SIZE)
+    return MAX_BATCH_SIZE
+
+
+def _truthy(raw: str) -> bool:
+    return (raw or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _prepare_batch_run(run_scope: str, resume: bool) -> tuple[Path, list[dict]]:
+    BATCH_ROOT.mkdir(parents=True, exist_ok=True)
+    if resume:
+        latest = _latest_interrupted_run_dir(run_scope)
+        if latest is not None:
+            return latest, _load_cached_results(latest)
+
+    run_tag = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{run_scope}-{uuid.uuid4().hex[:6]}"
+    run_dir = BATCH_ROOT / run_tag
+    run_dir.mkdir(parents=True, exist_ok=True)
+    return run_dir, []
+
+
+def _latest_interrupted_run_dir(run_scope: str) -> Path | None:
+    candidates: list[Path] = []
+    for p in BATCH_ROOT.iterdir() if BATCH_ROOT.exists() else []:
+        if not p.is_dir():
+            continue
+        meta = p / "run-meta.json"
+        if not meta.exists():
+            continue
+        try:
+            obj = json.loads(meta.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if obj.get("run_scope") == run_scope and obj.get("status") == "interrupted":
+            candidates.append(p)
+    if not candidates:
+        return None
+    candidates.sort(key=lambda d: d.name)
+    return candidates[-1]
+
+
+def _load_cached_results(run_dir: Path) -> list[dict]:
+    out: list[dict] = []
+    for p in sorted(run_dir.glob("batch-*.json")):
+        try:
+            obj = json.loads(p.read_text(encoding="utf-8"))
+            out.extend(list(obj.get("results", [])))
+        except Exception:
+            continue
+    return out
+
+
+def _write_batch_cache(
+    run_dir: Path,
+    batch_index: int,
+    case_ids: list[str],
+    results: list[dict],
+    interrupted: bool,
+) -> None:
+    payload = {
+        "batch_index": batch_index,
+        "case_ids": case_ids,
+        "count": len(results),
+        "interrupted": interrupted,
+        "results": results,
+    }
+    out = run_dir / f"batch-{batch_index:03d}.json"
+    out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _write_run_meta(
+    run_dir: Path,
+    run_scope: str,
+    batch_size: int,
+    total_cases: int,
+    status: str,
+    stop_case_id: str,
+) -> None:
+    payload = {
+        "run_scope": run_scope,
+        "batch_size": batch_size,
+        "total_cases": total_cases,
+        "status": status,
+        "stop_case_id": stop_case_id,
+        "updated_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    (run_dir / "run-meta.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _is_failure(row: dict) -> bool:
+    auto = (row.get("automation_result") or "").upper()
+    biz = (row.get("business_result") or "").upper()
+    return auto == "FAIL" or biz == "FAIL"
+
+
+def _hydrate_shared_from_completed(client, bl: int, completed_results: list[dict]) -> None:
+    if not completed_results:
+        return
+    for row in completed_results:
+        if row.get("case_id") == "TC-SMOKE-003-LOCAL":
+            wa = row.get("whatsapp_id", "")
+            if wa:
+                _shared["handoff_wa"] = wa
+                _shared["handoff_outbound_before"] = settle_outbound_count(client, bl, wa, settle_s=3.0)
+

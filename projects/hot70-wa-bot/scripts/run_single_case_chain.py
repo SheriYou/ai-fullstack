@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Run one case by ID with deterministic session-chain rule.
 
@@ -28,19 +28,39 @@ from run_test_suite import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SHEET = ROOT / "prd" / "Hot70_机器人_人工复核结果 - Sheet1.csv"
+SHEET_CANDIDATES = [
+    ROOT / "prd" / "Hot70_机器人_人工复核结果 - Sheet1.csv",
+    ROOT / "prd" / "Hot70_机器人_知识库指标测试.csv",
+]
 
 
-def load_question(case_id: str) -> str:
-    with SHEET.open("r", encoding="gb18030", newline="") as f:
-        reader = csv.reader(f)
-        _ = next(reader)
-        for row in reader:
-            if row and row[0].strip() == case_id:
-                en = (row[9] or "").strip()
-                cn = (row[8] or "").strip()
-                return en or cn
-    return ""
+def resolve_sheet() -> Path:
+    for p in SHEET_CANDIDATES:
+        if p.exists():
+            return p
+    raise FileNotFoundError("missing sheet file, checked: " + ", ".join(str(p) for p in SHEET_CANDIDATES))
+
+
+def load_question(case_id: str) -> tuple[str, str]:
+    sheet = resolve_sheet()
+    is_hc = bool(re.match(r"^TC-H70-\d{3}-H-C\d+$", case_id))
+    for enc in ("utf-8-sig", "utf-8", "gb18030", "gbk"):
+        try:
+            with sheet.open("r", encoding=enc, newline="") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if (row.get("用例ID") or "").strip() == case_id:
+                        q_cn = (row.get("测试数据") or "").strip()
+                        q_en = (row.get("测试数据（英文提问）") or "").strip()
+                        if is_hc:
+                            if not q_en:
+                                return "", "H-C case requires non-empty 测试数据（英文提问）"
+                            return q_en, ""
+                        # N case: prefer English, fallback to CN.
+                        return (q_en or q_cn), ""
+        except UnicodeDecodeError:
+            continue
+    return "", "case not found or unreadable in sheet"
 
 
 def chain_for_case(case_id: str) -> list[str]:
@@ -76,9 +96,11 @@ def main() -> None:
     chain = chain_for_case(args.case_id.strip())
     prompts = []
     for cid in chain:
-        q = load_question(cid)
+        q, err = load_question(cid)
         if not q:
-            raise SystemExit(f"missing question for case: {cid}")
+            print("result=FAIL")
+            print(f"note={err}; case={cid}")
+            raise SystemExit(2)
         prompts.append((cid, q))
 
     client = Client(DEFAULT_BASE, DEFAULT_USER, DEFAULT_PASS)
@@ -94,7 +116,8 @@ def main() -> None:
     exec_case_id = args.case_id.strip()
     for cid, question in prompts:
         before = len(all_texts)
-        # Keep sender_name bound to the executing case id, including prerequisite turns.
+        # Keep both prerequisite N turn and H-C follow-up turn in one execution session
+        # under the same sender_name (the executing H-C case id).
         st, wh = client.webhook(args.channel, wa, question, sender_name=exec_case_id)
         ok = st == 200 and (wh.get("data") or {}).get("status") == "success"
         all_texts = wait_new_outbound(
@@ -105,7 +128,8 @@ def main() -> None:
             timeout_s=args.wait_seconds,
         )
         new = all_texts[before:] if len(all_texts) >= before else []
-        print(f"\ncase={cid}")
+        prefix = "prefill_case" if cid != exec_case_id else "case"
+        print(f"\n{prefix}={cid}")
         print(f"webhook_http={st} webhook_ok={ok}")
         print(f"outbound_total={len(all_texts)} outbound_new={len(new)}")
         safe_print(f"reply={(new[-1] if new else '')[:2500]}")

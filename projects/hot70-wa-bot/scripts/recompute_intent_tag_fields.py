@@ -4,13 +4,13 @@
 Recompute intent-tag related fields in review CSV.
 
 Rules:
-1) `实际识别的意图标签` must be one of:
+1) `日志客户标签` must be one of:
    - 已预定未提机
    - 未预定高意向
    - 未预定低意向
    - 已提交
    Otherwise set to empty.
-2) `意图标签是否准确` is judged by conversation content:
+2) `客户标签是否准确` is judged by conversation content:
    - infer expected tag from user text
    - accurate = (actual_tag == expected_tag) if expected exists else (actual_tag == "")
 """
@@ -149,8 +149,8 @@ def main() -> None:
 
     for row in rows:
         cid = row.get("用例ID", "")
-        old_tag = norm(row.get("实际识别的意图标签", ""))
-        old_acc = norm(row.get("意图标签是否准确", ""))
+        old_tag = norm(row.get("日志客户标签", ""))
+        old_acc = norm(row.get("客户标签是否准确", ""))
 
         note_tag = extract_tag_from_note(row.get("备注", ""))
         actual_tag = note_tag or normalize_tag(old_tag)
@@ -168,8 +168,8 @@ def main() -> None:
         if old_acc != new_acc:
             changed_acc += 1
 
-        row["实际识别的意图标签"] = actual_tag
-        row["意图标签是否准确"] = new_acc
+        row["日志客户标签"] = actual_tag
+        row["客户标签是否准确"] = new_acc
 
         if actual_tag:
             stats["actual_non_empty"] += 1

@@ -1,0 +1,8 @@
+﻿case_id,webhook_http,reply_count,session_id,source,tag_raw,tag_norm
+TC-H70-001-N,200,1,agent_b0cc850689694755bda78d8a45d6ebaf,empty,,
+TC-H70-002-N,200,1,agent_cc49fd0c5dda4beea1681a26441c0935,empty,,
+TC-H70-003-N,200,1,agent_2eacfd8a9894440991dfb97afd596928,empty,,
+TC-H70-004-N,200,1,agent_83ae0d427e704e0e89314c8a16b46a8d,empty,,
+TC-H70-005-N,200,1,agent_26ba04466f41445abf83aed5947cd34f,empty,,
+TC-H70-006-N,200,1,agent_9e3891e349004240bb3fd344e73eb32a,empty,,
+TC-H70-007-N,200,1,agent_70af62a8badc400994e03dd6ad729d15,empty,,

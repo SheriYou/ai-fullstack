@@ -3,8 +3,10 @@
   "faq_encoding": "utf-8-sig",
   "faq_total_rows": 112,
   "faq_used_rows": 99,
-  "generated_cases": 214,
+  "generated_cases": 172,
   "conditional_without_scene_rows": 0,
+  "llm_followup_used": 72,
+  "llm_followup_fallback": 1,
   "skipped_rows": [
     "L90: missing key fields(q/cat/en)",
     "L91: missing key fields(q/cat/en)",
@@ -20,5 +22,5 @@
     "L112: missing key fields(q/cat/en)",
     "L113: missing key fields(q/cat/en)"
   ],
-  "out_csv": "D:\\CMP\\agent-human-test\\projects\\hot70-wa-bot\\prd\\Hot70_机器人_知识库指标测试.csv"
+  "out_csv": "D:\\CMP\\agent-human-test\\projects\\hot70-wa-bot\\prd\\Hot70_机器人_知识库指标测试.generated.csv"
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Recompute `转人工时机是否准确` by direct comparison:
+Recompute `转人工是否准确` by direct comparison:
   accurate = (actual_handoff == expected_handoff)
 
 `expected_handoff` is read from `转人工预期` (是/否).
@@ -76,7 +76,7 @@ def main() -> None:
         accurate = expected == actual
         new_value = bool_to_yesno(accurate)
 
-        old_value = (row.get("转人工时机是否准确") or "").strip()
+        old_value = (row.get("转人工是否准确") or "").strip()
         if old_value != new_value:
             changed += 1
             if len(samples) < 30:
@@ -89,7 +89,7 @@ def main() -> None:
                         "task_type": task_type,
                     }
                 )
-            row["转人工时机是否准确"] = new_value
+            row["转人工是否准确"] = new_value
 
         if not accurate:
             mismatch += 1
