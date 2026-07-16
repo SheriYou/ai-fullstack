@@ -17,7 +17,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from case_executor import is_handoff_reply_text, poll_turn_state
-from l2_eval_core import facts_match, first_response_ms, session_id_from, session_task_type
+from l2_eval_core import facts_match, last_response_ms, session_id_from, session_task_type
 from run_bundle import run_dir
 from run_test_suite import DEFAULT_BASE, DEFAULT_PASS, DEFAULT_USER, Client
 
@@ -30,18 +30,20 @@ from llm_client import LlmConfigError, chat  # noqa: E402
 
 REPORTS = ROOT / "reports"
 SOURCE_CSV = ROOT / "prd" / "Hot70_机器人_知识库指标测试.csv"
-ALLOWED_INTENT_TAGS = {"已预定未提机", "未预定高意向", "未预定低意向", "已提交"}
+FAQ_CSV = ROOT / "prd" / "Hot 70 FAQ知识库_FAQ知识库_全部FAQ.csv"
+ALLOWED_INTENT_TAGS = {"已预订未提机", "未预订高意向", "未预订低意向", "已提机", "NA"}
+VALID_LOG_CUSTOMER_TAGS = {"已预订未提机", "未预订高意向", "已提机"}
 INTENT_TAG_ALIASES = {
-    "已提机": "已提交",
-    "已提货": "已提交",
-    "已取机": "已提交",
-    "picked_up": "已提交",
-    "already_picked_up": "已提交",
-    "已预定": "已预定未提机",
-    "已预约": "已预定未提机",
-    "已预订未提机": "已预定未提机",
-    "未预订高意向": "未预定高意向",
-    "未预订低意向": "未预定低意向",
+    "已提机": "已提机",
+    "已提货": "已提机",
+    "已取机": "已提机",
+    "picked_up": "已提机",
+    "already_picked_up": "已提机",
+    "已预定": "已预订未提机",
+    "已预约": "已预订未提机",
+    "已预订未提机": "已预订未提机",
+    "未预订高意向": "未预订高意向",
+    "未预订低意向": "未预订低意向",
 }
 
 
@@ -61,6 +63,15 @@ def load_rows(path: Path) -> list[dict]:
 
 def yesno_text(value: bool) -> str:
     return "是" if value else "否"
+
+
+def parse_yes_no(value) -> bool | None:
+    raw = str(value or "").strip().lower()
+    if raw in ("是", "yes", "true", "1"):
+        return True
+    if raw in ("否", "no", "false", "0"):
+        return False
+    return None
 
 
 def normalize_handoff(value: str) -> str:
@@ -207,14 +218,15 @@ def resolve_trace_authoritative_fields(client: Client, bl: int, session_id: str)
             return None
 
     return {
+        "trace_logs_available": bool(logs),
         "trace_detected_intent": str(detected_intent or "").strip(),
         "trace_detected_intent_event_id": str((det_rec or {}).get("id") or ""),
-        "trace_knowledge_hit": _to_int(knowledge_hit),
+        "trace_knowledge_hit": parse_yes_no(knowledge_hit),
         "trace_knowledge_hit_event_id": str((kh_rec or {}).get("id") or ""),
         "trace_customer_tag_raw": str(customer_tag or "").strip(),
         "trace_customer_tag_norm": normalize_intent_tag(str(customer_tag or "").strip()),
         "trace_customer_tag_event_id": str((ct_rec or {}).get("id") or ""),
-        "trace_handoff_flag": _to_int(handoff_flag),
+        "trace_handoff_flag": parse_yes_no(handoff_flag),
         "trace_handoff_flag_event_id": str((ho_rec or {}).get("id") or ""),
         "trace_latency_ms": _to_int(latency_ms),
         "trace_latency_event_id": str((lat_rec or {}).get("id") or ""),
@@ -274,8 +286,8 @@ def llm_judge_intent_tag(
     """
     system_prompt = (
         "你是测试评审员。只判断“日志客户标签”是否与聊天上下文一致。"
-        "可用标签仅有：已预定未提机、未预定高意向、未预定低意向、已提交、空。"
-        "如果上下文没有证据表明用户已预定/已提机，就不能判为已预定未提机或已提交。"
+        "可用标签仅有：已预订未提机、未预订高意向、已提机、NA。"
+        "如果上下文没有证据表明用户已预订/已提机，就不能判为已预订未提机或已提机。"
         "仅输出 JSON，不要输出额外文本。"
     )
     user_prompt = (
@@ -287,7 +299,7 @@ def llm_judge_intent_tag(
         f"日志客户标签(raw): {actual_tag_raw}\n"
         f"日志客户标签(normalized): {actual_tag_norm or '空'}\n\n"
         "请输出 JSON："
-        '{"is_accurate":"是或否","recommended_tag":"已预定未提机/未预定高意向/未预定低意向/已提交/空","reason":"一句话理由"}'
+        '{"is_accurate":"是或否","recommended_tag":"已预订未提机/未预订高意向/已提机/NA","reason":"一句话理由"}'
     )
     txt = chat(
         [
@@ -353,6 +365,58 @@ def llm_judge_handoff(
     return actual == "是", reason
 
 
+def llm_judge_reply_semantics(*, transcript: str, reply: str) -> tuple[str, str]:
+    prompt = (
+        "根据用户与机器人对话，判断机器人英文回复是否语义合理且语言自然。"
+        "只输出JSON：{\"is_reasonable\":\"是/否\",\"reason\":\"一句话理由\"}。\n"
+        f"对话：\n{transcript}\n\n机器人实际回复：\n{reply}"
+    )
+    txt = chat(
+        [{"role": "system", "content": "你是严格的客服质检员，只输出JSON。"}, {"role": "user", "content": prompt}],
+        project_root=ROOT,
+        temperature=0,
+    )
+    obj = extract_json_object(txt) or {}
+    value = str(obj.get("is_reasonable", "")).strip()
+    if value not in ("是", "否"):
+        raise RuntimeError(f"LLM返回语义判断非法: {txt[:160]}")
+    return value, str(obj.get("reason", "")).strip()
+
+
+def faq_match_by_llm(*, question: str, reply: str, faq_rows: list[dict], conditional: bool) -> tuple[bool, str]:
+    field = "转人工条件（英文）" if conditional else "问题（英文）"
+    candidates = [{"index": i, "text": (r.get(field) or "").strip()} for i, r in enumerate(faq_rows)]
+    candidates = [c for c in candidates if c["text"]]
+    if not candidates:
+        return False, "FAQ候选为空"
+    prompt = ("从FAQ候选中选择与用户问题语义最匹配的一条；无匹配时matched_index为-1。仅输出JSON。\n"
+              f"字段：{field}\n用户问题：{question}\n候选：{json.dumps(candidates, ensure_ascii=False)}")
+    txt = chat([{"role": "system", "content": "你是FAQ语义匹配器，只输出JSON。"}, {"role": "user", "content": prompt}], project_root=ROOT, temperature=0)
+    obj = extract_json_object(txt) or {}
+    try:
+        index = int(obj.get("matched_index", -1))
+    except (TypeError, ValueError):
+        index = -1
+    if index < 0 or index >= len(faq_rows):
+        return False, "未匹配FAQ"
+    if conditional:
+        return True, "FAQ转人工条件匹配"
+    feedback = (faq_rows[index].get("业务反馈") or "").strip()
+    reply_words = {w.lower() for w in re.findall(r"[A-Za-z0-9]+", reply)}
+    feedback_words = {w.lower() for w in re.findall(r"[A-Za-z0-9]+", feedback)}
+    overlap = reply_words & feedback_words
+    return bool(feedback_words and overlap), f"业务反馈关键词重合{len(overlap)}个"
+
+
+def last_user_question(messages: list[dict], fallback: str) -> str:
+    for message in reversed(messages):
+        if (message.get("direction") or "").lower() == "inbound":
+            content = (message.get("content") or "").strip()
+            if content:
+                return content
+    return fallback
+
+
 def build_transcript(messages: list[dict]) -> str:
     lines: list[str] = []
     for m in messages:
@@ -376,6 +440,7 @@ def evaluate_case(
     whatsapp_id: str | None = None,
     sender_name: str | None = None,
     min_outbound_count: int = 0,
+    faq_rows: list[dict] | None = None,
 ) -> dict:
     case_id = (row.get("用例ID") or "").strip()
     case_name = (row.get("用例名称") or "").strip()
@@ -403,6 +468,7 @@ def evaluate_case(
             "日志转人工": "",
             "转人工是否准确": "NA",
             "实际回复内容（英文）": "",
+            "语义是否合理": "NA",
             "回复是否准确": "NA",
             "actual_intent_tag_raw": "",
             "actual_intent_tag_norm": "",
@@ -438,7 +504,7 @@ def evaluate_case(
         min_outbound_count=min_outbound_count,
     )
     task_type = session_task_type(sess)
-    resp_ms = first_response_ms(msgs, fallback_wait_ms=wait_s * 1000)
+    resp_ms = last_response_ms(msgs, fallback_wait_ms=wait_s * 1000)
     transcript = build_transcript(msgs)
     trace_info = resolve_trace_tag_and_intent(client, bl, wa)
     trace_auth = resolve_trace_authoritative_fields(client, bl, wa)
@@ -453,6 +519,8 @@ def evaluate_case(
 
     business_result = "PASS"
     notes: list[str] = []
+    if not trace_auth["trace_logs_available"]:
+        notes.append("无法读取日志")
     knowledge_hit = "NA"
     handoff_check = "NA"
     trace_handoff_bool = trace_auth["trace_handoff_flag"] == 1 if trace_auth["trace_handoff_flag"] is not None else None
@@ -557,8 +625,9 @@ def evaluate_case(
                 knowledge_hit = "NA"
                 notes.append("handoff_flag unavailable in trace log")
 
-    if not observed_tag_norm:
-        it_acc, it_rec, it_reason, it_source = "是", "", "actual_tag_empty_default_match", "empty_default"
+    if observed_tag_raw not in VALID_LOG_CUSTOMER_TAGS:
+        observed_tag_norm = ""
+        it_acc, it_rec, it_reason, it_source = "NA", "", "日志客户标签为NA", "na"
     elif enable_llm_intent_tag:
         try:
             it_acc, it_rec, it_reason, it_source = llm_judge_intent_tag(
@@ -580,6 +649,54 @@ def evaluate_case(
     if trace_knowledge_bool is not None:
         knowledge_hit = "PASS" if trace_knowledge_bool else "FAIL"
 
+    actual_reply = texts[-1] if texts else ""
+    semantic_ok = "NA"
+    semantic_reason = ""
+    if actual_reply:
+        try:
+            semantic_ok, semantic_reason = llm_judge_reply_semantics(transcript=transcript, reply=actual_reply)
+        except (LlmConfigError, RuntimeError) as e:
+            semantic_reason = f"语义判断不可用:{str(e)[:160]}"
+
+    if expected_handoff in ("true", "false") and actual_handoff_bool is not None:
+        handoff_accuracy = "是" if (actual_handoff_bool == (expected_handoff == "true")) else "否"
+    else:
+        handoff_accuracy = "NA"
+    if expected_handoff == "true" and handoff_accuracy == "是":
+        knowledge_hit = "PASS"
+
+    if trace_knowledge_bool is None and faq_rows is not None:
+        try:
+            is_conditional = bool(re.search(r"-H-C\d+$", case_id))
+            matched, match_reason = faq_match_by_llm(
+                question=last_user_question(msgs, input_en or input_cn),
+                reply=actual_reply,
+                faq_rows=faq_rows,
+                conditional=is_conditional,
+            )
+            if is_conditional:
+                matched = matched and handoff_accuracy == "是"
+            knowledge_hit = "PASS" if matched else "FAIL"
+            notes.append(match_reason)
+        except (LlmConfigError, RuntimeError) as e:
+            knowledge_hit = "NA"
+            notes.append(f"知识库语义匹配不可用:{str(e)[:160]}")
+
+    if expected_handoff == "true" and handoff_accuracy == "是":
+        knowledge_hit = "PASS"
+    if not actual_reply:
+        components = (knowledge_hit, it_acc, handoff_accuracy)
+        if all(value == "是" or value == "PASS" for value in components):
+            reply_accuracy = "是"
+        elif any(value == "NA" for value in components):
+            reply_accuracy = "NA"
+        else:
+            reply_accuracy = "否"
+    elif semantic_ok in ("是", "否") and handoff_accuracy in ("是", "否"):
+        reply_accuracy = "是" if semantic_ok == "是" and handoff_accuracy == "是" else "否"
+    else:
+        reply_accuracy = "NA"
+
     return {
         "case_id": case_id,
         "case_name": case_name,
@@ -595,9 +712,9 @@ def evaluate_case(
         "知识库是否命中": "是" if knowledge_hit == "PASS" else ("否" if knowledge_hit == "FAIL" else "NA"),
         "知识库是否命中正确": "",
         "客户标签是否准确": it_acc,
-        "回复是否准确": "是" if business_result == "PASS" else "否",
-        "执行结果": "PASS" if business_result == "PASS" and wh_ok else "FAIL",
-        "备注": "; ".join(notes) if notes else "OK",
+        "回复是否准确": reply_accuracy,
+        "语义是否合理": semantic_ok,
+        "备注": "; ".join(notes + ([semantic_reason] if semantic_reason else [])) if notes or semantic_reason else "",
         "actual_intent_tag_raw": observed_tag_raw,
         "actual_intent_tag_norm": observed_tag_norm,
         "actual_intent_tag_source": observed_tag_source,
@@ -611,13 +728,12 @@ def evaluate_case(
         "trace_knowledge_hit_event_id": trace_auth["trace_knowledge_hit_event_id"],
         "trace_handoff_flag_event_id": trace_auth["trace_handoff_flag_event_id"],
         "trace_latency_event_id": trace_auth["trace_latency_event_id"],
-        "日志客户标签": observed_tag_raw or observed_tag_norm,
+        "日志客户标签": observed_tag_raw if observed_tag_raw in VALID_LOG_CUSTOMER_TAGS else "NA",
         "客户标签是否准确": it_acc,
-        "日志转人工": yesno_text(trace_handoff_bool) if trace_handoff_bool is not None else "",
-        "转人工是否准确": (
-            "是" if ((actual_handoff_bool is True) == (expected_handoff == "true")) else "否"
-        ) if actual_handoff_bool is not None and expected_handoff in ("true", "false") else "待确认",
-        "实际回复内容（英文）": texts[-1] if texts else "",
+        "日志转人工": yesno_text(trace_handoff_bool) if trace_handoff_bool is not None else "NA",
+        "转人工是否准确": handoff_accuracy,
+        "实际回复内容（英文）": actual_reply,
+        "语义是否合理": semantic_ok,
         "服务端真实耗时": trace_auth["trace_latency_ms"] if trace_auth["trace_latency_ms"] is not None else "",
         "接口响应时长": int(resp_ms) if resp_ms is not None else "",
         "intent_tag_accuracy": it_acc,
@@ -709,8 +825,8 @@ def write_outputs(run_id: str, executed_at: str, source_csv: Path, results: list
         "case_id", "case_name", "input_cn", "input_en", "expected_handoff",
         "status", "automation_result", "business_result", "reply_check",
         "knowledge_hit", "handoff_check", "知识库是否命中", "知识库是否命中正确", "日志客户标签", "客户标签是否准确",
-        "日志转人工", "转人工是否准确", "实际回复内容（英文）", "回复是否准确",
-        "服务端真实耗时", "接口响应时长", "执行结果", "备注",
+        "日志转人工", "转人工是否准确", "实际回复内容（英文）", "语义是否合理", "回复是否准确",
+        "服务端真实耗时", "接口响应时长", "备注",
         "actual_intent_tag_raw", "actual_intent_tag_norm", "actual_intent_tag_source",
         "intent_tag_accuracy", "intent_tag_recommended", "intent_tag_source", "intent_tag_reason",
         "trace_detected_intent", "trace_knowledge_hit", "trace_handoff_flag", "trace_latency_ms",
@@ -793,7 +909,7 @@ def write_updated_source_csv(run_id: str, source_rows: list[dict], results: list
             new_row["日志转人工"] = rr.get("日志转人工", "") or ""
             new_row["转人工是否准确"] = rr.get("转人工是否准确", "") or ""
             new_row["实际回复内容（英文）"] = rr.get("实际回复内容（英文）", "") or ""
-            new_row["执行结果"] = rr.get("执行结果", "") or ""
+            new_row["语义是否合理"] = rr.get("语义是否合理", "") or ""
             new_row["备注"] = rr.get("备注", "") or ""
             for field in ("服务端真实耗时", "接口响应时长"):
                 if field in new_row:
@@ -836,6 +952,7 @@ def main():
         raise FileNotFoundError(f"source csv not found: {source}")
 
     rows = load_rows(source)
+    faq_rows = load_rows(FAQ_CSV) if FAQ_CSV.exists() else []
     if args.limit < 1 or args.limit > 10:
         raise ValueError("单次最多执行10条用例，请将 --limit 设置为 1-10")
     rows = rows[: args.limit]
@@ -872,6 +989,7 @@ def main():
                         args.wait,
                         enable_llm_intent_tag=enable_llm_intent_tag,
                         sender_name=case_id,
+                        faq_rows=faq_rows,
                     )
                 if prefill.get("status") == "SKIP":
                     raise RuntimeError(f"prerequisite case skipped for {case_id}")
@@ -885,6 +1003,7 @@ def main():
                     whatsapp_id=prefill.get("whatsapp_id") or None,
                     sender_name=case_id,
                     min_outbound_count=int(prefill.get("outbound_count") or 0),
+                    faq_rows=faq_rows,
                 )
             else:
                 result = evaluate_case(
@@ -895,6 +1014,7 @@ def main():
                     args.wait,
                     enable_llm_intent_tag=enable_llm_intent_tag,
                     sender_name=case_id or None,
+                    faq_rows=faq_rows,
                 )
         except Exception as exc:
             raise RuntimeError(f"执行用例 {case_id} 时发生框架异常，已停止后续执行: {exc}") from exc

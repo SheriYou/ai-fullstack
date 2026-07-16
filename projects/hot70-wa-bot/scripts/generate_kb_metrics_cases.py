@@ -47,18 +47,20 @@ OUT_FIELDS = [
     "测试数据",
     "测试数据（英文提问）",
     "转人工预期",
+    "是否存在知识库",
+    "执行阶段",
     "是否使用新会话",
-    "实际回复内容（英文）",
     "知识库是否命中",
     "知识库是否命中正确",
     "日志客户标签",
     "客户标签是否准确",
     "日志转人工",
     "转人工是否准确",
+    "实际回复内容（英文）",
+    "语义是否合理",
     "回复是否准确",
     "服务端真实耗时",
     "接口响应时长",
-    "执行结果",
     "备注",
 ]
 
@@ -238,9 +240,52 @@ def llm_follow_up_en(scene: str, base_q_en: str, category: str) -> str:
     return out[:220]
 
 
+def assign_execution_stages(rows: list[dict[str, str]]) -> None:
+    """Assign mutually exclusive P0/P1/P2 stages by total generated case count."""
+    total = len(rows)
+    quotas = {
+        "P0": min(20, total),
+        "P1": int(total * 0.10),
+        "P2": int(total * 0.30),
+    }
+    available = list(range(total))
+
+    for stage, quota in quotas.items():
+        if not available or quota <= 0:
+            continue
+        target_n = min((quota + 2) // 4, quota)
+        target_h = quota - target_n
+        selected: list[int] = []
+
+        for suffix, target in (("-N", target_n), ("-H-C", target_h)):
+            matches = [
+                index
+                for index in available
+                if (
+                    rows[index].get("用例ID", "").endswith(suffix)
+                    if suffix == "-N"
+                    else suffix in rows[index].get("用例ID", "")
+                )
+            ]
+            selected.extend(matches[:target])
+
+        if len(selected) < quota:
+            selected.extend(index for index in available if index not in selected)
+            selected = selected[:quota]
+
+        for index in selected:
+            rows[index]["执行阶段"] = stage
+        available = [index for index in available if index not in selected]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate KB metrics test cases from FAQ csv.")
     parser.add_argument("--faq-csv", default=str(FAQ_CSV))
+    parser.add_argument(
+        "--status",
+        default="已确认",
+        help="Only generate rows with this FAQ status (default: 已确认). Use --status all to include every status.",
+    )
     parser.add_argument("--out-csv", default=str(OUT_CSV))
     parser.add_argument(
         "--disable-llm-followup",
@@ -269,10 +314,15 @@ def main() -> int:
 
     case_no = 0
     for i, r in enumerate(rows, start=2):
+        row_status = (r.get("状态") or "").strip()
+        if args.status.lower() != "all" and row_status != args.status:
+            skipped.append(f"L{i}: status={row_status or '<empty>'}")
+            continue
+
         q_cn = (r.get("用户问题") or "").strip()
         q_en = (r.get("问题（英文）") or "").strip()
         cat = (r.get("分类") or "").strip()
-        reply_zh = (r.get("回复中文翻译") or r.get("业务反馈") or "").strip()
+        reply_zh = (r.get("业务反馈") or r.get("回复中文翻译") or "").strip()
         handoff = normalize_handoff(r.get("是否需要转人工") or "")
         cond_en = (r.get("转人工条件（英文）") or "").strip()
         cond_note = (r.get("转人工条件/备注") or "").strip()
@@ -313,6 +363,8 @@ def main() -> int:
                 "测试数据": q_cn,
                 "测试数据（英文提问）": q_en,
                 "转人工预期": n_handoff,
+                "是否存在知识库": "是",
+                "执行阶段": "",
                 "是否使用新会话": "是",
             }
         )
@@ -367,10 +419,14 @@ def main() -> int:
                         "测试数据": follow_cn,
                         "测试数据（英文提问）": follow_en,
                         "转人工预期": "是",
+                        "是否存在知识库": "是",
+                        "执行阶段": "",
                         "是否使用新会话": "否",
                     }
                 )
                 out_rows.append(h_row)
+
+    assign_execution_stages(out_rows)
 
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     with out_csv.open("w", encoding="utf-8-sig", newline="") as f:
@@ -382,6 +438,7 @@ def main() -> int:
         "faq_csv": str(faq_csv),
         "faq_encoding": enc,
         "faq_total_rows": len(rows),
+        "faq_status_filter": args.status,
         "faq_used_rows": faq_used,
         "generated_cases": len(out_rows),
         "conditional_without_scene_rows": conditional_no_scene,

@@ -170,6 +170,31 @@ def _msg_ts(m: dict) -> int | None:
     return None
 
 
+def last_response_ms(messages: list, fallback_wait_ms: float | None = None) -> float | None:
+    """最近一条 inbound 到其后最后一条 outbound 的毫秒差。"""
+    if not messages:
+        return fallback_wait_ms
+    inbound = []
+    outbound = []
+    for message in messages:
+        timestamp = _msg_ts(message)
+        if timestamp is None:
+            continue
+        direction = (message.get("direction") or "").lower()
+        if direction == "inbound":
+            inbound.append(timestamp)
+        elif direction == "outbound" and (message.get("content") or "").strip():
+            outbound.append(timestamp)
+    if not inbound or not outbound:
+        return fallback_wait_ms
+    anchor = max(inbound)
+    later = [timestamp for timestamp in outbound if timestamp >= anchor]
+    if not later:
+        return fallback_wait_ms
+    delta = max(later) - anchor
+    return float(delta) if delta >= 0 else fallback_wait_ms
+
+
 def first_response_ms(messages: list, fallback_wait_ms: float | None = None) -> float | None:
     """最近一条 inbound 到其后首条 outbound 的毫秒差。"""
     if not messages:

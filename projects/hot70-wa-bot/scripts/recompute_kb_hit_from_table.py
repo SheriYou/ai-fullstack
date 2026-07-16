@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Recompute `知识库是否命中` and `执行结果`, and apply handoff-fallback
+Recompute `知识库是否命中`, and apply handoff-fallback
 consistency overrides.
 
 Base rule:

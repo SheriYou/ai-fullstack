@@ -17,7 +17,13 @@ FAQ / 知识库
 python scripts/generate_kb_metrics_cases.py
 ```
 
-默认从 `prd/Hot 70 FAQ知识库_FAQ知识库_全部FAQ.csv` 生成专项用例。
+默认从 `prd/Hot 70 FAQ知识库_FAQ知识库_全部FAQ.csv` 生成专项用例，仅处理 `状态=已确认` 的 FAQ。
+
+生成后校验：
+
+```powershell
+python scripts/validate_kb_metrics_cases.py
+```
 
 ## 执行与报告
 
