@@ -28,10 +28,10 @@ python scripts/validate_kb_metrics_cases.py
 ## 执行与报告
 
 ```powershell
-python scripts/run_kb_metrics_test.py
+python scripts/run_kb_metrics_test.py --batch-index 1
 ```
 
-专项结果写入 `reports/runs/{run_id}/`，包括逐用例 CSV、汇总 JSON 和 Markdown 报告。
+每次执行一个固定最多 10 条的批次，结果逐条写入 `reports/cases-results.jsonl`，批次状态写入 `reports/batches/`。成功完成后删除临时过程文件；框架错误立即停止并保留已执行结果。全部批次完成后运行 `python scripts/aggregate_kb_metrics_results.py` 聚合。
 
 ## 公共能力
 

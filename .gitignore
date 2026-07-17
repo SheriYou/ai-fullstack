@@ -73,3 +73,10 @@ projects/*/prd/*指标测试*.csv
 !projects/*/reports/*-review*.md
 !projects/*/reports/corpus-review-for-ops.md
 !projects/*/reports/e2e-log.csv
+# 分层测试执行结果：本地保留，不上传 Git
+projects/*/reports/cases-results.jsonl
+projects/*/reports/batches/
+projects/*/reports/aggregated-results.csv
+projects/*/reports/aggregated-results.json
+projects/*/reports/aggregated-report.md
+projects/*/reports/*.tmp

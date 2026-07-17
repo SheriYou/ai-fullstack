@@ -1,28 +1,29 @@
-# PRD 日志字段 ↔ 后端可观测数据
+# test 环境日志字段映射
 
-> PRD §7.5 字段与 `whatsapp-bot-service` DB/API **无 1:1 对应**。M8 用例改查下列组合。
+> 当前 Hot70 test 环境以 `wa_message_trace_log` 为日志权威来源。指标取数必须按当前入站消息的 `message_id` 关联，禁止跨消息、跨轮次读取同一会话的历史字段。
 
-| PRD 字段 | 后端来源 | 说明 |
-|----------|----------|------|
-| `session_id` | `AgentSession.sessionId` | GET `agent/session/{whatsappId}` |
-| `wa_id` / `phone` | `Conversation.whatsappId` | 会话表 / messages API |
-| `message_time` | `ChatMessage.timestamp` | messages API |
-| `user_message` | `ChatMessage.content`（inbound） | messages API |
-| `detected_intent` | `ChatMessage.intent` | 存 **task_type**（如 `QA_ANSWER`），非 PRD 七类 |
-| `confidence` | `AgentStep.outputJson` → `confidence` | agent/session steps |
-| `knowledge_hit` | **无独立字段** | 从 `ToolCallLog`（RagflowTool）success + 有 answer 推断 |
-| `bot_reply` | outbound `ChatMessage.content` | messages API |
-| `customer_tag` | **P1 未实现** | 仅有会话 tags（Sales Lead 等），非智齿五类标签 |
-| `handoff_flag` | `Conversation.handoffStatus` + `conversationStatus` | `handoff` / `external_handoff` |
+| 指标/字段 | `wa_message_trace_log` 字段 | 取值规则 |
+|----------|-----------------------------|----------|
+| 会话 | `session_id` | 优先按 session 查询；仅用于定位当前会话 |
+| WhatsApp | `whatsapp_id` | session 查询补充/兜底条件 |
+| 当前消息 | `message_id` | 必须与本次 webhook 入站消息 ID 精确匹配 |
+| 意图标签 | `detected_intent` | 当前 `message_id` 日志中最新非空值 |
+| 知识库命中 | `knowledge_hit` | 当前 `message_id` 日志中的 tinyint 权威值 |
+| 客户标签 | `customer_tag` | 当前 `message_id` 日志中最新非空值；不在允许集合时回填 `NA` |
+| 转人工标志 | `handoff_flag` | 当前 `trace_id` 日志中的 tinyint 权威值；若机器人实际回复命中 `human agent` 关键词，则回填 `日志转人工=是` |
+| 转人工原因 | conversation.`handoff_reason` | 从会话接口当前 WhatsApp 会话读取；无值时留空 |
+| 服务端耗时 | `latency_ms` | 当前 `message_id` 日志中的毫秒值 |
+| 回复内容 | `bot_reply` | 主要用于日志核对，实际回复仍以 outbound message 为准 |
+| 诊断信息 | `stage`、`status`、`tool_name`、`error_message`、`extra_json` | 保留用于追溯；失败状态不作为权威指标值 |
 
-## M8 执行方式
+## 查询与过滤顺序
 
-| 用例 | 查什么 |
-|------|--------|
-| TC-M8-001~004 | messages API + Conversation |
-| TC-M8-005~006 | agent/session + audit-logs |
-| TC-M8-007 | agent/tools/logs（RagflowTool） |
-| TC-M8-008 | messages outbound vs 实际发送 |
-| TC-M8-009 | Conversation handoff 字段 |
-| TC-M8-010 | audit-logs + 未命中 handoff 样本汇总 |
-| TC-M8-011 | 服务端 `[ZHICHI_*]` / error 日志或 failed sendStatus |
+```text
+session_id 查询 + whatsapp_id 查询
+  -> 合并去重
+  -> 排除 failed/error 状态
+  -> 精确过滤当前 message_id
+  -> 按字段分别取最新非空值
+```
+
+当前消息日志在轮询截止前未落库时，指标字段保持缺失；不得回退到前置 N、同 session 其他消息或其他 H-Cxx 的日志。

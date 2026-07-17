@@ -18,7 +18,6 @@ from urllib.parse import quote
 
 from case_executor import is_handoff_reply_text, poll_turn_state
 from l2_eval_core import facts_match, last_response_ms, session_id_from, session_task_type
-from run_bundle import run_dir
 from run_test_suite import DEFAULT_BASE, DEFAULT_PASS, DEFAULT_USER, Client
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,6 +28,8 @@ if str(FRAMEWORK_ROOT / "lib") not in sys.path:
 from llm_client import LlmConfigError, chat  # noqa: E402
 
 REPORTS = ROOT / "reports"
+RESULTS_JSONL = REPORTS / "cases-results.jsonl"
+BATCHES_DIR = REPORTS / "batches"
 SOURCE_CSV = ROOT / "prd" / "Hot70_机器人_知识库指标测试.csv"
 FAQ_CSV = ROOT / "prd" / "Hot 70 FAQ知识库_FAQ知识库_全部FAQ.csv"
 ALLOWED_INTENT_TAGS = {"已预订未提机", "未预订高意向", "未预订低意向", "已提机", "NA"}
@@ -66,13 +67,14 @@ def yesno_text(value: bool) -> str:
 
 
 def parse_yes_no(value) -> bool | None:
-    raw = str(value or "").strip().lower()
-    if raw in ("是", "yes", "true", "1"):
+    if isinstance(value, bool):
+        return value
+    raw = "" if value is None else str(value).strip().lower()
+    if raw in ("1", "true", "yes", "y", "on", "是"):
         return True
-    if raw in ("否", "no", "false", "0"):
+    if raw in ("0", "false", "no", "n", "off", "否"):
         return False
     return None
-
 
 def normalize_handoff(value: str) -> str:
     raw = (value or "").strip()
@@ -95,13 +97,17 @@ def normalize_intent_tag(raw: str) -> str:
 def parse_trace_records(payload: dict) -> list[dict]:
     if not isinstance(payload, dict):
         return []
+    if isinstance(payload.get("records"), list):
+        return [r for r in payload["records"] if isinstance(r, dict)]
     d = payload.get("data") or {}
+    if isinstance(d, list):
+        return [r for r in d if isinstance(r, dict)]
     if isinstance(d, dict):
         d2 = d.get("data") or {}
         if isinstance(d2, dict):
             recs = d2.get("records")
             if isinstance(recs, list):
-                return recs
+                return [r for r in recs if isinstance(r, dict)]
         recs = d.get("records")
         if isinstance(recs, list):
             return recs
@@ -121,13 +127,29 @@ def fetch_trace_logs(client: Client, bl: int, session_id: str, event_type: str, 
     return [r for r in recs if (r.get("event_type") or "") == event_type]
 
 
+def _fetch_trace_pages(client: Client, path_template: str, size: int) -> list[dict]:
+    records: list[dict] = []
+    for page in range(1, 11):
+        st, data = client._call("GET", path_template.format(page=page, size=size))
+        if st != 200:
+            break
+        page_records = parse_trace_records(data)
+        records.extend(page_records)
+        if len(page_records) < size:
+            break
+    return records
+
+
 def fetch_trace_logs_by_session(client: Client, bl: int, session_id: str, size: int = 100) -> list[dict]:
     sid = quote(session_id, safe="")
-    path = f"/business-lines/{bl}/trace-logs?session_id={sid}&page=1&size={size}"
-    st, data = client._call("GET", path)
-    if st != 200:
-        return []
-    return parse_trace_records(data)
+    template = f"/business-lines/{bl}/trace-logs?session_id={sid}&page={{page}}&size={{size}}"
+    return _fetch_trace_pages(client, template, size)
+
+
+def fetch_trace_logs_by_whatsapp(client: Client, bl: int, whatsapp_id: str, size: int = 100) -> list[dict]:
+    wid = quote(whatsapp_id, safe="")
+    template = f"/business-lines/{bl}/trace-logs?whatsapp_id={wid}&page={{page}}&size={{size}}"
+    return _fetch_trace_pages(client, template, size)
 
 
 def trace_event_sort_key(rec: dict):
@@ -138,9 +160,10 @@ def trace_event_sort_key(rec: dict):
             return 0
 
     return (
-        _to_int(rec.get("event_time")),
-        _to_int(rec.get("created_at")),
+        _to_int(rec.get("event_time") or rec.get("created_at") or rec.get("timestamp") or rec.get("createdAt")),
+        _to_int(rec.get("message_id") or rec.get("messageId")),
         _to_int(rec.get("id")),
+        str(rec.get("trace_id") or ""),
     )
 
 
@@ -185,9 +208,77 @@ def resolve_trace_tag_and_intent(client: Client, bl: int, session_id: str) -> di
     }
 
 
+def _trace_message_id(record: dict) -> str:
+    value = record.get("message_id") or record.get("messageId")
+    return str(value).strip() if value is not None else ""
+
+
+def _trace_id(record: dict) -> str:
+    value = record.get("trace_id") or record.get("traceId")
+    return str(value).strip() if value is not None else ""
+
+
+def _trace_status_valid(record: dict) -> bool:
+    status = str(record.get("status") or "").strip().lower()
+    return status not in {"failed", "failure", "error", "err"}
+
+
+def _merge_trace_records(*record_sets: list[dict]) -> list[dict]:
+    merged: dict[tuple[str, str, str, str], dict] = {}
+    for records in record_sets:
+        for record in records:
+            if not isinstance(record, dict) or not _trace_status_valid(record):
+                continue
+            key = (
+                _trace_message_id(record),
+                str(record.get("event_type") or "").strip(),
+                str(record.get("stage") or "").strip(),
+                str(record.get("trace_id") or record.get("id") or "").strip(),
+            )
+            merged[key] = record
+    return list(merged.values())
+
+
+def _filter_trace_records_for_message(records: list[dict], message_id: str) -> list[dict]:
+    target = str(message_id or "").strip()
+    if not target:
+        return []
+    accepted = {target, f"local_gateway_{target}"}
+    matched = [record for record in records if _trace_message_id(record) in accepted]
+    return matched
+
+
+def _filter_trace_records_for_trace_id(records: list[dict], trace_id: str) -> list[dict]:
+    target = str(trace_id or "").strip()
+    if not target:
+        return []
+    return [record for record in records if _trace_id(record) == target]
+
+
+def _find_trace_id(records: list[dict], message_id: str) -> str:
+    matched = _filter_trace_records_for_message(records, message_id)
+    latest = latest_trace_event([record for record in matched if _trace_id(record)])
+    return _trace_id(latest or {})
+
+
+def _trace_field(record: dict, key: str):
+    value = record.get(key)
+    if value is not None and (not isinstance(value, str) or value.strip()):
+        return value
+    extra = record.get("extra_json")
+    if isinstance(extra, str):
+        try:
+            extra = json.loads(extra)
+        except json.JSONDecodeError:
+            extra = None
+    if isinstance(extra, dict):
+        return extra.get(key)
+    return None
+
+
 def _latest_non_empty(records: list[dict], key: str):
     for r in sorted(records, key=trace_event_sort_key, reverse=True):
-        v = r.get(key)
+        v = _trace_field(r, key)
         if v is None:
             continue
         if isinstance(v, str) and not v.strip():
@@ -196,11 +287,65 @@ def _latest_non_empty(records: list[dict], key: str):
     return None, None
 
 
-def resolve_trace_authoritative_fields(client: Client, bl: int, session_id: str) -> dict:
-    # 轮询几次，给异步落库留时间
+def _extract_trace_id(payload) -> str:
+    if isinstance(payload, dict):
+        for key in ("trace_id", "traceId"):
+            value = payload.get(key)
+            if value:
+                return str(value).strip()
+        for value in payload.values():
+            found = _extract_trace_id(value)
+            if found:
+                return found
+    if isinstance(payload, list):
+        for value in payload:
+            found = _extract_trace_id(value)
+            if found:
+                return found
+    return ""
+
+
+def extract_handoff_reason(conv: dict | None) -> str:
+    if not isinstance(conv, dict):
+        return ""
+    for key in ("handoff_reason", "handoffReason", "transfer_reason", "transferReason"):
+        value = conv.get(key)
+        if value is not None and str(value).strip():
+            return str(value).strip()
+    result_json = conv.get("external_handoff_result_json") or conv.get("externalHandoffResultJson")
+    if isinstance(result_json, str) and result_json.strip():
+        try:
+            result_json = json.loads(result_json)
+        except json.JSONDecodeError:
+            return result_json.strip()
+    if isinstance(result_json, dict):
+        for key in ("handoff_reason", "handoffReason", "reason", "message"):
+            value = result_json.get(key)
+            if value is not None and str(value).strip():
+                return str(value).strip()
+    return ""
+
+
+def resolve_trace_authoritative_fields(
+    client: Client,
+    bl: int,
+    session_id: str,
+    whatsapp_id: str = "",
+    message_id: str = "",
+    trace_id: str = "",
+) -> dict:
+    # Trace 落库可能有延迟；权威字段按当前 turn 的 trace_id 聚合。
     logs: list[dict] = []
-    for _ in range(3):
-        logs = fetch_trace_logs_by_session(client, bl, session_id, size=120)
+    session_logs: list[dict] = []
+    whatsapp_logs: list[dict] = []
+    resolved_trace_id = str(trace_id or "").strip()
+    for _ in range(5):
+        session_logs = fetch_trace_logs_by_session(client, bl, session_id, size=120) if session_id else []
+        whatsapp_logs = fetch_trace_logs_by_whatsapp(client, bl, whatsapp_id, size=120) if whatsapp_id else []
+        merged = _merge_trace_records(session_logs, whatsapp_logs)
+        if not resolved_trace_id:
+            resolved_trace_id = _find_trace_id(merged, message_id)
+        logs = _filter_trace_records_for_trace_id(merged, resolved_trace_id)
         if logs:
             break
         time.sleep(0.8)
@@ -217,19 +362,33 @@ def resolve_trace_authoritative_fields(client: Client, bl: int, session_id: str)
         except (TypeError, ValueError):
             return None
 
+    def _event_id(record: dict | None) -> str:
+        if not record:
+            return ""
+        return str(
+            _trace_message_id(record)
+            or record.get("trace_id")
+            or record.get("id")
+            or ""
+        )
+
     return {
         "trace_logs_available": bool(logs),
+        "trace_log_count": len(logs),
+        "trace_log_fields": sorted({key for record in logs for key in record.keys()}),
         "trace_detected_intent": str(detected_intent or "").strip(),
-        "trace_detected_intent_event_id": str((det_rec or {}).get("id") or ""),
+        "trace_detected_intent_event_id": _event_id(det_rec),
         "trace_knowledge_hit": parse_yes_no(knowledge_hit),
-        "trace_knowledge_hit_event_id": str((kh_rec or {}).get("id") or ""),
+        "trace_knowledge_hit_event_id": _event_id(kh_rec),
         "trace_customer_tag_raw": str(customer_tag or "").strip(),
         "trace_customer_tag_norm": normalize_intent_tag(str(customer_tag or "").strip()),
-        "trace_customer_tag_event_id": str((ct_rec or {}).get("id") or ""),
+        "trace_customer_tag_event_id": _event_id(ct_rec),
         "trace_handoff_flag": parse_yes_no(handoff_flag),
-        "trace_handoff_flag_event_id": str((ho_rec or {}).get("id") or ""),
+        "trace_handoff_flag_event_id": _event_id(ho_rec),
         "trace_latency_ms": _to_int(latency_ms),
-        "trace_latency_event_id": str((lat_rec or {}).get("id") or ""),
+        "trace_latency_event_id": _event_id(lat_rec),
+        "trace_id": resolved_trace_id,
+        "trace_message_id": str(message_id or "").strip(),
     }
 
 
@@ -365,6 +524,10 @@ def llm_judge_handoff(
     return actual == "是", reason
 
 
+def has_human_agent_keyword(text: str) -> bool:
+    return "human agent" in (text or "").lower()
+
+
 def llm_judge_reply_semantics(*, transcript: str, reply: str) -> tuple[str, str]:
     prompt = (
         "根据用户与机器人对话，判断机器人英文回复是否语义合理且语言自然。"
@@ -456,6 +619,15 @@ def evaluate_case(
         return {
             "case_id": case_id,
             "case_name": case_name,
+            "是否存在知识库": row.get("是否存在知识库", ""),
+            "执行步骤": row.get("执行步骤", ""),
+            "预期结果": row.get("预期结果", ""),
+            "前置条件": row.get("前置条件", ""),
+            "测试数据": row.get("测试数据", ""),
+            "测试数据（英文提问）": row.get("测试数据（英文提问）", ""),
+            "转人工预期": row.get("转人工预期", ""),
+            "执行阶段": row.get("执行阶段", ""),
+            "是否使用新会话": row.get("是否使用新会话", ""),
             "status": "SKIP",
             "automation_result": "SKIP",
             "business_result": "NA",
@@ -466,6 +638,7 @@ def evaluate_case(
             "客户标签是否准确": "NA",
             "日志客户标签": "",
             "日志转人工": "",
+            "转人工原因": "",
             "转人工是否准确": "NA",
             "实际回复内容（英文）": "",
             "语义是否合理": "NA",
@@ -475,6 +648,7 @@ def evaluate_case(
             "actual_intent_tag_source": "none",
             "trace_detected_intent": "",
             "trace_tag_reason": "",
+            "conversation_handoff_reason": "",
             "日志客户标签": "",
             "客户标签是否准确": "NA",
             "intent_tag_accuracy": "NA",
@@ -486,12 +660,15 @@ def evaluate_case(
         }
 
     wa = whatsapp_id or f"kb-{uuid.uuid4().hex[:10]}@s.whatsapp.net"
+    inbound_message_id = f"test-{uuid.uuid4().hex[:12]}"
     st, wh = client.webhook(
         channel,
         wa,
         user_text,
         sender_name=sender_name or case_id or "KB-METRIC",
+        message_id=inbound_message_id,
     )
+    inbound_trace_id = _extract_trace_id(wh)
     wh_ok = st == 200 and (wh.get("data") or {}).get("status") == "success"
     poll_wait = max(wait_s, 8.0) if expected_handoff == "true" else max(wait_s, 4.0)
     sess, msgs, conv, texts = poll_turn_state(
@@ -500,14 +677,19 @@ def evaluate_case(
         wa,
         wait_s=poll_wait,
         expect_handoff=False,
-        require_outbound=(expected_handoff != "true"),
+        require_outbound=(expected_handoff != "true" or min_outbound_count > 0),
         min_outbound_count=min_outbound_count,
     )
     task_type = session_task_type(sess)
+    conversation_handoff_reason = extract_handoff_reason(conv)
     resp_ms = last_response_ms(msgs, fallback_wait_ms=wait_s * 1000)
     transcript = build_transcript(msgs)
+    actual_reply = texts[-1] if texts else ""
     trace_info = resolve_trace_tag_and_intent(client, bl, wa)
-    trace_auth = resolve_trace_authoritative_fields(client, bl, wa)
+    trace_auth = resolve_trace_authoritative_fields(
+        client, bl, trace_session_id := session_id_from(sess, msgs, conv),
+        whatsapp_id=wa, message_id=inbound_message_id, trace_id=inbound_trace_id,
+    )
     if trace_auth["trace_customer_tag_raw"]:
         observed_tag_raw = trace_auth["trace_customer_tag_raw"]
         observed_tag_norm = trace_auth["trace_customer_tag_norm"]
@@ -526,11 +708,17 @@ def evaluate_case(
     trace_handoff_bool = trace_auth["trace_handoff_flag"] == 1 if trace_auth["trace_handoff_flag"] is not None else None
     trace_knowledge_bool = trace_auth["trace_knowledge_hit"] == 1 if trace_auth["trace_knowledge_hit"] is not None else None
 
-    actual_handoff_bool = trace_handoff_bool
+    log_handoff_bool = trace_handoff_bool
     handoff_source = "trace.handoff_flag"
+    if actual_reply and has_human_agent_keyword(actual_reply):
+        log_handoff_bool = True
+        handoff_source = "reply.keyword.human_agent"
+        notes.append("handoff by reply keyword: human agent")
+
+    actual_handoff_bool = log_handoff_bool
     if actual_handoff_bool is None:
         try:
-            actual_handoff_bool, handoff_reason = llm_judge_handoff(
+            actual_handoff_bool, handoff_llm_reason = llm_judge_handoff(
                 case_id=case_id,
                 case_name=case_name,
                 user_cn=input_cn,
@@ -538,7 +726,7 @@ def evaluate_case(
                 transcript=transcript,
             )
             handoff_source = "llm"
-            notes.append(f"handoff by LLM: {handoff_reason}")
+            notes.append(f"handoff by LLM: {handoff_llm_reason}")
         except (LlmConfigError, RuntimeError) as e:
             handoff_source = "unavailable"
             notes.append(f"handoff LLM unavailable: {str(e)[:160]}")
@@ -649,7 +837,6 @@ def evaluate_case(
     if trace_knowledge_bool is not None:
         knowledge_hit = "PASS" if trace_knowledge_bool else "FAIL"
 
-    actual_reply = texts[-1] if texts else ""
     semantic_ok = "NA"
     semantic_reason = ""
     if actual_reply:
@@ -700,6 +887,15 @@ def evaluate_case(
     return {
         "case_id": case_id,
         "case_name": case_name,
+        "是否存在知识库": row.get("是否存在知识库", ""),
+        "执行步骤": row.get("执行步骤", ""),
+        "预期结果": row.get("预期结果", ""),
+        "前置条件": row.get("前置条件", ""),
+        "测试数据": row.get("测试数据", ""),
+        "测试数据（英文提问）": row.get("测试数据（英文提问）", ""),
+        "转人工预期": row.get("转人工预期", ""),
+        "执行阶段": row.get("执行阶段", ""),
+        "是否使用新会话": row.get("是否使用新会话", ""),
         "input_cn": input_cn,
         "input_en": input_en,
         "expected_handoff": expected_handoff,
@@ -718,19 +914,23 @@ def evaluate_case(
         "actual_intent_tag_raw": observed_tag_raw,
         "actual_intent_tag_norm": observed_tag_norm,
         "actual_intent_tag_source": observed_tag_source,
-        "trace_detected_intent": trace_auth["trace_detected_intent"] or trace_info["trace_detected_intent"],
+        "trace_detected_intent": trace_auth["trace_detected_intent"],
         "trace_knowledge_hit": trace_auth["trace_knowledge_hit"] if trace_auth["trace_knowledge_hit"] is not None else "",
         "trace_handoff_flag": trace_auth["trace_handoff_flag"] if trace_auth["trace_handoff_flag"] is not None else "",
         "trace_latency_ms": trace_auth["trace_latency_ms"] if trace_auth["trace_latency_ms"] is not None else "",
+        "conversation_handoff_reason": conversation_handoff_reason,
         "trace_tag_reason": trace_info["trace_tag_reason"],
         "trace_tag_event_id": trace_auth["trace_customer_tag_event_id"] or trace_info["trace_tag_event_id"],
         "trace_intent_event_id": trace_auth["trace_detected_intent_event_id"] or trace_info["trace_intent_event_id"],
         "trace_knowledge_hit_event_id": trace_auth["trace_knowledge_hit_event_id"],
         "trace_handoff_flag_event_id": trace_auth["trace_handoff_flag_event_id"],
         "trace_latency_event_id": trace_auth["trace_latency_event_id"],
+        "trace_id": trace_auth["trace_id"],
+        "trace_message_id": trace_auth["trace_message_id"],
         "日志客户标签": observed_tag_raw if observed_tag_raw in VALID_LOG_CUSTOMER_TAGS else "NA",
         "客户标签是否准确": it_acc,
-        "日志转人工": yesno_text(trace_handoff_bool) if trace_handoff_bool is not None else "NA",
+        "日志转人工": yesno_text(log_handoff_bool) if log_handoff_bool is not None else "NA",
+        "转人工原因": conversation_handoff_reason,
         "转人工是否准确": handoff_accuracy,
         "实际回复内容（英文）": actual_reply,
         "语义是否合理": semantic_ok,
@@ -750,201 +950,101 @@ def evaluate_case(
     }
 
 
-def summarize(results: list[dict]) -> dict:
-    executed = [r for r in results if r.get("status") != "SKIP"]
-    total = len(results)
-    pass_n = sum(1 for r in executed if r.get("business_result") == "PASS")
-    fail_n = sum(1 for r in executed if r.get("business_result") == "FAIL")
-    skip_n = total - len(executed)
-
-    def _yn(val: str) -> str:
-        v = (val or "").strip()
-        if v in ("是", "yes", "YES", "true", "TRUE", "PASS"):
-            return "是"
-        if v in ("否", "no", "NO", "false", "FALSE", "FAIL"):
-            return "否"
-        return ""
-
-    kb_rows = [r for r in executed if _yn(r.get("知识库是否命中", "") or r.get("knowledge_hit", "")) in ("是", "否")]
-    kb_pass = sum(1 for r in kb_rows if _yn(r.get("知识库是否命中", "") or r.get("knowledge_hit", "")) == "是")
-    kb_rate = (kb_pass / len(kb_rows) * 100) if kb_rows else None
-
-    reply_rows = [r for r in executed if _yn(r.get("回复是否准确", "") or r.get("reply_check", "")) in ("是", "否")]
-    reply_pass = sum(1 for r in reply_rows if _yn(r.get("回复是否准确", "") or r.get("reply_check", "")) == "是")
-    reply_rate = (reply_pass / len(reply_rows) * 100) if reply_rows else None
-
-    ho_rows = [r for r in executed if _yn(r.get("转人工是否准确", "")) in ("是", "否")]
-    ho_pass = sum(1 for r in ho_rows if _yn(r.get("转人工是否准确", "")) == "是")
-    ho_rate = (ho_pass / len(ho_rows) * 100) if ho_rows else None
-
-    intent_rows = [r for r in executed if _yn(r.get("客户标签是否准确", "") or r.get("intent_tag_accuracy", "")) in ("是", "否")]
-    intent_ok = sum(1 for r in intent_rows if _yn(r.get("客户标签是否准确", "") or r.get("intent_tag_accuracy", "")) == "是")
-    intent_rate = (intent_ok / len(intent_rows) * 100) if intent_rows else None
-    intent_llm_n = sum(1 for r in intent_rows if r.get("intent_tag_source") == "llm")
-    intent_empty_default_n = sum(1 for r in intent_rows if r.get("intent_tag_source") == "empty_default")
-    intent_pending_n = sum(1 for r in executed if (r.get("intent_tag_accuracy") or "").strip() == "待确认")
-
-    resp_vals = [float(r["response_ms"]) for r in executed if str(r.get("response_ms", "")).isdigit()]
-    avg_resp = (sum(resp_vals) / len(resp_vals)) if resp_vals else None
-
-    return {
-        "total": total,
-        "executed": len(executed),
-        "pass": pass_n,
-        "fail": fail_n,
-        "skip": skip_n,
-        "kb_sample": len(kb_rows),
-        "kb_pass": kb_pass,
-        "kb_hit_rate": round(kb_rate, 2) if kb_rate is not None else None,
-        "reply_sample": len(reply_rows),
-        "reply_pass": reply_pass,
-        "reply_accuracy": round(reply_rate, 2) if reply_rate is not None else None,
-        "handoff_sample": len(ho_rows),
-        "handoff_pass": ho_pass,
-        "handoff_accuracy": round(ho_rate, 2) if ho_rate is not None else None,
-        "intent_tag_sample": len(intent_rows),
-        "intent_tag_pass": intent_ok,
-        "intent_tag_accuracy": round(intent_rate, 2) if intent_rate is not None else None,
-        "intent_tag_llm": intent_llm_n,
-        "intent_tag_empty_default": intent_empty_default_n,
-        "intent_tag_pending": intent_pending_n,
-        "avg_response_ms": round(avg_resp, 1) if avg_resp is not None else None,
-    }
-
-
-def write_outputs(run_id: str, executed_at: str, source_csv: Path, results: list[dict], summary: dict) -> dict[str, Path]:
-    REPORTS.mkdir(parents=True, exist_ok=True)
-    out_dir = run_dir(run_id)
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    result_csv = out_dir / "kb-metrics-results.csv"
-    summary_json = out_dir / "kb-metrics-summary.json"
-    report_md = out_dir / "kb-metrics-report.md"
-
-    fields = [
-        "case_id", "case_name", "input_cn", "input_en", "expected_handoff",
+def result_fields() -> list[str]:
+    return [
+        "case_id", "case_name", "执行步骤", "预期结果", "前置条件", "测试数据", "测试数据（英文提问）", "转人工预期", "是否存在知识库", "执行阶段", "是否使用新会话", "input_cn", "input_en", "expected_handoff",
         "status", "automation_result", "business_result", "reply_check",
         "knowledge_hit", "handoff_check", "知识库是否命中", "知识库是否命中正确", "日志客户标签", "客户标签是否准确",
-        "日志转人工", "转人工是否准确", "实际回复内容（英文）", "语义是否合理", "回复是否准确",
+        "日志转人工", "转人工原因", "转人工是否准确", "实际回复内容（英文）", "语义是否合理", "回复是否准确",
         "服务端真实耗时", "接口响应时长", "备注",
         "actual_intent_tag_raw", "actual_intent_tag_norm", "actual_intent_tag_source",
         "intent_tag_accuracy", "intent_tag_recommended", "intent_tag_source", "intent_tag_reason",
-        "trace_detected_intent", "trace_knowledge_hit", "trace_handoff_flag", "trace_latency_ms",
+        "trace_detected_intent", "trace_knowledge_hit", "trace_handoff_flag", "trace_latency_ms", "conversation_handoff_reason",
         "trace_tag_reason", "trace_tag_event_id", "trace_intent_event_id",
-        "trace_knowledge_hit_event_id", "trace_handoff_flag_event_id", "trace_latency_event_id",
+        "trace_knowledge_hit_event_id", "trace_handoff_flag_event_id", "trace_latency_event_id", "trace_message_id",
+        "trace_id",
         "response_ms", "task_type", "whatsapp_id", "session_id", "outbound_preview", "outbound_count", "notes",
     ]
-    with result_csv.open("w", encoding="utf-8-sig", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=fields)
-        w.writeheader()
-        w.writerows(results)
 
-    summary_payload = {
-        "run_id": run_id,
-        "executed_at": executed_at,
-        "source_csv": str(source_csv.relative_to(ROOT)).replace("\\", "/"),
-        **summary,
+
+def load_result_case_ids() -> set[str]:
+    if not RESULTS_JSONL.exists():
+        return set()
+    case_ids = set()
+    with RESULTS_JSONL.open("r", encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                payload = json.loads(line)
+                if payload.get("case_id"):
+                    case_ids.add(payload["case_id"])
+    return case_ids
+
+
+def append_case_result(result: dict, batch_index: int, source_index: int) -> None:
+    REPORTS.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "batch_index": batch_index,
+        "source_index": source_index,
+        "executed_at": datetime.now().isoformat(timespec="seconds"),
+        **result,
     }
-    summary_json.write_text(json.dumps(summary_payload, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    fail_top = [r for r in results if r.get("business_result") == "FAIL"][:30]
-    lines = [
-        "# Hot70 知识库指标专项测试报告（L2）",
-        "",
-        f"> {executed_at}",
-        "",
-        f"- source: `{source_csv.relative_to(ROOT).as_posix()}`",
-        f"- run_id: `{run_id}`",
-        "",
-        "## 汇总",
-        "",
-        f"- 执行：{summary['executed']} / {summary['total']}（skip={summary['skip']}）",
-        f"- 业务结果：PASS={summary['pass']} FAIL={summary['fail']}",
-        f"- 知识库命中率：{summary['kb_hit_rate']}% ({summary['kb_pass']}/{summary['kb_sample']})" if summary["kb_hit_rate"] is not None else "- 知识库命中率：—",
-        f"- 回复准确率：{summary['reply_accuracy']}% ({summary['reply_pass']}/{summary['reply_sample']})" if summary["reply_accuracy"] is not None else "- 回复准确率：—",
-        f"- 转人工准确率：{summary['handoff_accuracy']}% ({summary['handoff_pass']}/{summary['handoff_sample']})" if summary["handoff_accuracy"] is not None else "- 转人工准确率：—",
-        f"- 客户标签准确率：{summary['intent_tag_accuracy']}% ({summary['intent_tag_pass']}/{summary['intent_tag_sample']})" if summary["intent_tag_accuracy"] is not None else "- 客户标签准确率：—",
-        f"- 客户标签判定来源：LLM={summary['intent_tag_llm']}，空标签默认匹配={summary['intent_tag_empty_default']}，待确认={summary['intent_tag_pending']}",
-        f"- 平均响应：{summary['avg_response_ms']} ms" if summary["avg_response_ms"] is not None else "- 平均响应：—",
-        "",
-        "## 指标计算",
-        "",
-        "- 知识库命中率 = `知识库是否命中=是` 用例数 / `知识库是否命中 in (是, 否)` 用例数",
-        "- 客户标签准确率 = `客户标签是否准确=是` 用例数 / `客户标签是否准确 in (是, 否)` 用例数",
-        "- 转人工准确率 = `转人工是否准确=是` 用例数 / `转人工是否准确 in (是, 否)` 用例数",
-        "- 回复准确率 = `回复是否准确=是` 用例数 / `回复是否准确 in (是, 否)` 用例数",
-        "",
-        "## Fail Top30",
-        "",
-        "| case_id | expected_handoff | task_type | notes |",
-        "|---|---|---|---|",
-    ]
-    if fail_top:
-        for r in fail_top:
-            lines.append(
-                f"| {r.get('case_id','')} | {r.get('expected_handoff','')} | {r.get('task_type','')} | {str(r.get('notes',''))[:120]} |"
-            )
-    else:
-        lines.append("| — | — | — | 本轮无 FAIL |")
-    lines.append("")
-
-    report_md.write_text("\n".join(lines), encoding="utf-8")
-    return {"result_csv": result_csv, "summary_json": summary_json, "report_md": report_md}
+    with RESULTS_JSONL.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        f.flush()
 
 
-def write_updated_source_csv(run_id: str, source_rows: list[dict], results: list[dict]) -> Path:
-    out_dir = run_dir(run_id)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / "Hot70_机器人_知识库指标测试.回填结果.csv"
-    by_id = {r.get("case_id", ""): r for r in results}
-    rows_out: list[dict] = []
-    for row in source_rows:
-        new_row = dict(row)
-        cid = (row.get("用例ID") or "").strip()
-        rr = by_id.get(cid)
-        if rr:
-            new_row["日志客户标签"] = rr.get("日志客户标签", "") or ""
-            new_row["知识库是否命中正确"] = rr.get("知识库是否命中正确", "") or ""
-            new_row["客户标签是否准确"] = rr.get("客户标签是否准确", "") or ""
-            new_row["日志转人工"] = rr.get("日志转人工", "") or ""
-            new_row["转人工是否准确"] = rr.get("转人工是否准确", "") or ""
-            new_row["实际回复内容（英文）"] = rr.get("实际回复内容（英文）", "") or ""
-            new_row["语义是否合理"] = rr.get("语义是否合理", "") or ""
-            new_row["备注"] = rr.get("备注", "") or ""
-            for field in ("服务端真实耗时", "接口响应时长"):
-                if field in new_row:
-                    new_row[field] = rr.get(field, "") or ""
-        rows_out.append(new_row)
+def write_batch_state(
+    batch_index: int,
+    start_index: int,
+    end_index: int,
+    expected_count: int,
+    executed_count: int,
+    status: str,
+    *,
+    error: str = "",
+    failed_case_id: str = "",
+) -> Path:
+    BATCHES_DIR.mkdir(parents=True, exist_ok=True)
+    path = BATCHES_DIR / f"batch-{batch_index:03d}.json"
+    temp_path = path.with_suffix(".json.tmp")
+    payload = {
+        "batch_index": batch_index,
+        "start_index": start_index,
+        "end_index": end_index,
+        "expected_count": expected_count,
+        "executed_count": executed_count,
+        "status": status,
+        "error": error,
+        "failed_case_id": failed_case_id,
+        "result_file": str(RESULTS_JSONL.relative_to(ROOT)).replace("\\", "/"),
+        "updated_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    temp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    temp_path.replace(path)
+    return path
 
-    if rows_out:
-        fieldnames = list(rows_out[0].keys())
-    else:
-        fieldnames = []
-    with out.open("w", encoding="utf-8-sig", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames)
-        w.writeheader()
-        w.writerows(rows_out)
-    return out
+
+def cleanup_process_documents(batch_index: int) -> None:
+    for path in (
+        BATCHES_DIR / f"batch-{batch_index:03d}.json.tmp",
+        REPORTS / f"batch-{batch_index:03d}.running.json",
+    ):
+        if path.exists():
+            path.unlink()
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Hot70 L2 知识库指标专项测试")
-    parser.add_argument(
-        "--source",
-        default=str(SOURCE_CSV),
-        help="知识库指标 CSV 路径（默认 prd/Hot70_机器人_知识库指标测试.csv）",
-    )
+    parser = argparse.ArgumentParser(description="Hot70 L2 指标专项测试：单次执行一个批次")
+    parser.add_argument("--source", default=str(SOURCE_CSV))
+    parser.add_argument("--batch-index", type=int, required=True, help="从 1 开始的批次编号，每批固定最多 10 条")
     parser.add_argument("--channel", default="ch_wa_01")
     parser.add_argument("--business-line-id", type=int, default=1)
     parser.add_argument("--wait", type=float, default=50.0)
-    parser.add_argument("--limit", type=int, default=10, help="最多执行 N 条；默认 10，超过 10 条将拒绝执行")
-    parser.add_argument(
-        "--disable-llm-intent-tag",
-        action="store_true",
-        help="关闭 LLM 后，非空意图标签会标记为待确认。",
-    )
+    parser.add_argument("--disable-llm-intent-tag", action="store_true")
     args = parser.parse_args()
 
+    if args.batch_index < 1:
+        raise ValueError("--batch-index must be >= 1")
     source = Path(args.source)
     if not source.is_absolute():
         source = (ROOT / source).resolve()
@@ -953,87 +1053,126 @@ def main():
 
     rows = load_rows(source)
     faq_rows = load_rows(FAQ_CSV) if FAQ_CSV.exists() else []
-    if args.limit < 1 or args.limit > 10:
-        raise ValueError("单次最多执行10条用例，请将 --limit 设置为 1-10")
-    rows = rows[: args.limit]
     if not rows:
         print("no rows loaded")
         return
 
+    batch_size = 10
+    batch_start = (args.batch_index - 1) * batch_size
+    if batch_start >= len(rows):
+        raise ValueError(f"batch {args.batch_index} is outside source range")
+    batch_rows = rows[batch_start : batch_start + batch_size]
+    batch_end = batch_start + len(batch_rows)
+    rows_by_id = {(r.get("用例ID") or "").strip(): r for r in rows}
+    batch_case_ids = {(r.get("用例ID") or "").strip() for r in batch_rows}
+    for row in batch_rows:
+        case_id = (row.get("用例ID") or "").strip()
+        if case_id not in rows_by_id:
+            raise RuntimeError(f"missing case id: {case_id}")
+
+    duplicate_ids = batch_case_ids & load_result_case_ids()
+    if duplicate_ids:
+        raise RuntimeError(f"results already exist for batch cases: {sorted(duplicate_ids)}")
+    batch_path = BATCHES_DIR / f"batch-{args.batch_index:03d}.json"
+    if batch_path.exists():
+        raise RuntimeError(f"batch state already exists: {batch_path}")
+
+    write_batch_state(args.batch_index, batch_start + 1, batch_end, len(batch_rows), 0, "running")
     client = Client(DEFAULT_BASE, DEFAULT_USER, DEFAULT_PASS)
     if not client.login(DEFAULT_USER, DEFAULT_PASS):
+        write_batch_state(args.batch_index, batch_start + 1, batch_end, len(batch_rows), 0, "interrupted", error="LOGIN FAILED")
         raise RuntimeError("LOGIN FAILED")
 
-    run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
-    executed_at = datetime.now().isoformat(timespec="seconds")
-
-    results = []
     enable_llm_intent_tag = not args.disable_llm_intent_tag
-    rows_by_id = {(r.get("用例ID") or "").strip(): r for r in rows}
-    executed_case_context: dict[str, dict] = {}
-    for idx, row in enumerate(rows, start=1):
-        case_id = (row.get("用例ID") or "").strip()
-        match = CASE_ID_RE.match(case_id)
-        try:
+    completed = 0
+    case_id = ""
+    seen_chain_whatsapp_ids: set[str] = set()
+    seen_chain_session_ids: set[str] = set()
+    try:
+        for offset, row in enumerate(batch_rows):
+            source_index = batch_start + offset + 1
+            case_id = (row.get("用例ID") or "").strip()
+            match = CASE_ID_RE.match(case_id)
             if match and match.group(2).startswith("H-C"):
-                prerequisite = rows_by_id.get(f"{match.group(1)}-N")
-                if not prerequisite:
-                    raise RuntimeError(f"missing prerequisite {match.group(1)}-N for {case_id}")
-                prefill = executed_case_context.get(f"{match.group(1)}-N")
-                if prefill is None:
-                    prefill = evaluate_case(
-                        client,
-                        prerequisite,
-                        args.channel,
-                        args.business_line_id,
-                        args.wait,
-                        enable_llm_intent_tag=enable_llm_intent_tag,
-                        sender_name=case_id,
-                        faq_rows=faq_rows,
-                    )
-                if prefill.get("status") == "SKIP":
-                    raise RuntimeError(f"prerequisite case skipped for {case_id}")
-                result = evaluate_case(
-                    client,
-                    row,
-                    args.channel,
-                    args.business_line_id,
-                    args.wait,
+                prerequisite = rows_by_id[f"{match.group(1)}-N"]
+                chain_whatsapp_id = f"kb-{uuid.uuid4().hex[:16]}@s.whatsapp.net"
+                if chain_whatsapp_id in seen_chain_whatsapp_ids:
+                    raise RuntimeError(f"duplicate chain whatsapp_id: {chain_whatsapp_id}")
+                prefill = evaluate_case(
+                    client, prerequisite, args.channel, args.business_line_id, args.wait,
                     enable_llm_intent_tag=enable_llm_intent_tag,
-                    whatsapp_id=prefill.get("whatsapp_id") or None,
+                    whatsapp_id=chain_whatsapp_id,
+                    sender_name=f"{match.group(1)}-N",
+                    faq_rows=faq_rows,
+                )
+                prefill_wa = (prefill.get("whatsapp_id") or "").strip()
+                prefill_session = (prefill.get("session_id") or "").strip()
+                if prefill_wa != chain_whatsapp_id:
+                    raise RuntimeError(
+                        f"prefill whatsapp_id mismatch for {case_id}: "
+                        f"expected={chain_whatsapp_id} actual={prefill_wa}"
+                    )
+                if int(prefill.get("outbound_count") or 0) <= 0:
+                    raise RuntimeError(f"prefill AI reply not observed before follow-up: {case_id}")
+                if prefill_session and prefill_session in seen_chain_session_ids:
+                    raise RuntimeError(f"session reused across H-C chains: {case_id} session={prefill_session}")
+                result = evaluate_case(
+                    client, row, args.channel, args.business_line_id, args.wait,
+                    enable_llm_intent_tag=enable_llm_intent_tag,
+                    whatsapp_id=chain_whatsapp_id,
                     sender_name=case_id,
                     min_outbound_count=int(prefill.get("outbound_count") or 0),
                     faq_rows=faq_rows,
                 )
+                result_wa = (result.get("whatsapp_id") or "").strip()
+                result_session = (result.get("session_id") or "").strip()
+                if result_wa != chain_whatsapp_id:
+                    raise RuntimeError(
+                        f"follow-up whatsapp_id mismatch for {case_id}: "
+                        f"expected={chain_whatsapp_id} actual={result_wa}"
+                    )
+                if prefill_session and result_session and result_session != prefill_session:
+                    raise RuntimeError(
+                        f"session changed within H-C chain: {case_id} "
+                        f"prefill={prefill_session} followup={result_session}"
+                    )
+                seen_chain_whatsapp_ids.add(chain_whatsapp_id)
+                if prefill_session:
+                    seen_chain_session_ids.add(prefill_session)
             else:
                 result = evaluate_case(
-                    client,
-                    row,
-                    args.channel,
-                    args.business_line_id,
-                    args.wait,
+                    client, row, args.channel, args.business_line_id, args.wait,
                     enable_llm_intent_tag=enable_llm_intent_tag,
                     sender_name=case_id or None,
                     faq_rows=faq_rows,
                 )
-        except Exception as exc:
-            raise RuntimeError(f"执行用例 {case_id} 时发生框架异常，已停止后续执行: {exc}") from exc
-        results.append(result)
-        if case_id.endswith("-N"):
-            executed_case_context[case_id] = result
-        if idx % 10 == 0:
-            print(f"progress {idx}/{len(rows)}", flush=True)
-        time.sleep(0.1)
-    summary = summarize(results)
-    outputs = write_outputs(run_id, executed_at, source, results, summary)
-    updated_source_csv = write_updated_source_csv(run_id, rows, results)
-    print(f"run_id={run_id}")
-    print(f"report_md={outputs['report_md']}")
-    print(f"result_csv={outputs['result_csv']}")
-    print(f"summary_json={outputs['summary_json']}")
-    print(f"updated_source_csv={updated_source_csv}")
-    print(json.dumps(summary, ensure_ascii=False))
+                result_wa = (result.get("whatsapp_id") or "").strip()
+                result_session = (result.get("session_id") or "").strip()
+                if result_wa and result_wa in seen_chain_whatsapp_ids:
+                    raise RuntimeError(f"session whatsapp_id reused: {case_id} whatsapp_id={result_wa}")
+                if result_session and result_session in seen_chain_session_ids:
+                    raise RuntimeError(f"session reused across cases: {case_id} session={result_session}")
+                if result_wa:
+                    seen_chain_whatsapp_ids.add(result_wa)
+                if result_session:
+                    seen_chain_session_ids.add(result_session)
+            append_case_result(result, args.batch_index, source_index)
+            completed += 1
+            write_batch_state(args.batch_index, batch_start + 1, batch_end, len(batch_rows), completed, "running")
+            print(f"progress {completed}/{len(batch_rows)}", flush=True)
+            time.sleep(0.1)
+    except Exception as exc:
+        write_batch_state(
+            args.batch_index, batch_start + 1, batch_end, len(batch_rows), completed,
+            "interrupted", error=str(exc), failed_case_id=case_id,
+        )
+        raise RuntimeError(f"batch {args.batch_index} stopped at {case_id}: {exc}") from exc
 
+    write_batch_state(args.batch_index, batch_start + 1, batch_end, len(batch_rows), completed, "completed")
+    cleanup_process_documents(args.batch_index)
+    print(f"batch={args.batch_index} status=completed executed={completed}")
+    print(f"results={RESULTS_JSONL}")
+    print(f"batch_state={batch_path}")
 
 if __name__ == "__main__":
     main()

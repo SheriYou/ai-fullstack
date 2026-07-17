@@ -1,0 +1,117 @@
+{
+  "total": 10,
+  "pass": 2,
+  "fail": 8,
+  "automation_pass": 10,
+  "business_pass": 2,
+  "knowledge_hit_rate": 30.0,
+  "tag_accuracy": null,
+  "handoff_accuracy": 30.0,
+  "reply_accuracy": 20.0,
+  "avg_service_ms": 97.4,
+  "avg_response_ms": 35949.7,
+  "output_csv": "D:\\CMP\\agent-human-test\\projects\\hot70-wa-bot\\reports\\Hot70_P1_10_回填结果_traceid_20260717-165727.csv",
+  "source_jsonl": "D:\\CMP\\agent-human-test\\projects\\hot70-wa-bot\\tmp\\p1-test-20260717\\reports\\cases-results-traceid-20260717-165727.jsonl",
+  "cases": [
+    {
+      "用例ID": "TC-H70-006-N",
+      "结果": "FAIL",
+      "知识库是否命中": "是",
+      "日志转人工": "否",
+      "转人工是否准确": "是",
+      "服务端真实耗时": 0,
+      "trace_id": "tr_1_a434dc27af9120e6_b5c8aba44b2ad5bc_08ea8870cac4b320",
+      "备注": "handoff by LLM: 机器人告知无法转接人工，继续自助服务; handoff source=llm; missing expected facts; 业务反馈关键词重合6个; 机器人解释了人工客服不可用，并主动要求更多细节以提供帮助，逻辑通顺且语言自然。; trace_id=tr_1_a434dc27af9120e6_b5c8aba44b2ad5bc_08ea8870cac4b320"
+    },
+    {
+      "用例ID": "TC-H70-007-N",
+      "结果": "PASS",
+      "知识库是否命中": "是",
+      "日志转人工": "否",
+      "转人工是否准确": "是",
+      "服务端真实耗时": 410,
+      "trace_id": "tr_1_a434dc27af9120e6_d1f1d26063a5e763_3396bb040cf8072a",
+      "备注": "handoff by LLM: 机器人直接回答了用户问题，没有转接人工客服。; handoff source=llm; 业务反馈关键词重合30个; 回复中列举颜色使用了中文顿号，不符合英文标点规范，语言不自然。; trace_id=tr_1_a434dc27af9120e6_d1f1d26063a5e763_3396bb040cf8072a"
+    },
+    {
+      "用例ID": "TC-H70-008-N",
+      "结果": "PASS",
+      "知识库是否命中": "是",
+      "日志转人工": "否",
+      "转人工是否准确": "是",
+      "服务端真实耗时": 357,
+      "trace_id": "tr_1_a434dc27af9120e6_d72bc3cf07a7165d_e80e3203115ca810",
+      "备注": "handoff by LLM: 机器人直接回答了用户问题，未触发转接人工。; handoff source=llm; 业务反馈关键词重合18个; 机器人确认了支持5G，并提供了额外信息，语义合理且语言自然。; trace_id=tr_1_a434dc27af9120e6_d72bc3cf07a7165d_e80e3203115ca810"
+    },
+    {
+      "用例ID": "TC-H70-011-H-C01",
+      "结果": "FAIL",
+      "知识库是否命中": "否",
+      "日志转人工": "否",
+      "转人工是否准确": "否",
+      "服务端真实耗时": 107,
+      "trace_id": "tr_1_a434dc27af9120e6_246c9c21ebc4c27d_eff9d025046e5fef",
+      "备注": "handoff by LLM: The bot indicated no human agent was available and continued to assist, no transfer occurred.; handoff source=llm; actual handoff did not match expected value; FAQ候选为空; 机器人没有直接回答用户关于分期付款和月付选项的问题，而是重复了标准话术"
+    },
+    {
+      "用例ID": "TC-H70-019-H-C01",
+      "结果": "FAIL",
+      "知识库是否命中": "否",
+      "日志转人工": "否",
+      "转人工是否准确": "否",
+      "服务端真实耗时": 0,
+      "trace_id": "tr_1_a434dc27af9120e6_3b58740961d1ce08_4b3e5f870c759e1e",
+      "备注": "handoff by LLM: 对话中机器人未理解用户问题，但未出现转人工操作，用户未获得人工客服服务。; handoff source=llm; actual handoff did not match expected value; FAQ候选为空; 机器人未能理解用户关于HOT70 Pro 5G价格的明确问题，重复要求重发，不合理。; trace_id=tr_1_a434dc27af9120e6_3b58740961d1ce08_"
+    },
+    {
+      "用例ID": "TC-H70-019-H-C02",
+      "结果": "FAIL",
+      "知识库是否命中": "否",
+      "日志转人工": "否",
+      "转人工是否准确": "否",
+      "服务端真实耗时": 0,
+      "trace_id": "tr_1_a434dc27af9120e6_f0d486c3a78a7e97_c20af5ec3da52450",
+      "备注": "handoff by LLM: 用户询问特殊促销或折扣后，机器人没有回复，也没有任何转接人工的表示或操作。; handoff source=llm; actual handoff did not match expected value; FAQ候选为空; 机器人未针对用户询问的促销折扣问题作答，重复了价格信息，语义不匹配。; trace_id=tr_1_a434dc27af9120e6_f0d486c3a78a7e97_c20af5e"
+    },
+    {
+      "用例ID": "TC-H70-019-H-C03",
+      "结果": "FAIL",
+      "知识库是否命中": "否",
+      "日志转人工": "否",
+      "转人工是否准确": "否",
+      "服务端真实耗时": 0,
+      "trace_id": "tr_1_a434dc27af9120e6_8cb667655b669d1e_59ef908f8f7b5171",
+      "备注": "handoff by LLM: 对话中没有出现转人工的操作或提示，机器人仅回答了价格和促销问题，未启动转人工流程。; handoff source=llm; actual handoff did not match expected value; FAQ候选为空; 机器人没有回答用户关于促销组合的问题，而是重复了之前的价格和预购信息，语义不合理。; trace_id=tr_1_a434dc27af9120e6_8cb667655b669"
+    },
+    {
+      "用例ID": "TC-H70-019-H-C04",
+      "结果": "FAIL",
+      "知识库是否命中": "否",
+      "日志转人工": "否",
+      "转人工是否准确": "否",
+      "服务端真实耗时": 100,
+      "trace_id": "tr_1_a434dc27af9120e6_2feabc6dc94dc67b_96febcdb4a7aa382",
+      "备注": "handoff by LLM: The conversation ends with the user's question about price discrepancy; no handoff to a human agent occurred.; handoff source=llm; actual handoff did not match expected value; FAQ候选为空; 重复之前的价格信息，未解释用户提出的价"
+    },
+    {
+      "用例ID": "TC-H70-020-H-C01",
+      "结果": "FAIL",
+      "知识库是否命中": "否",
+      "日志转人工": "否",
+      "转人工是否准确": "否",
+      "服务端真实耗时": 0,
+      "trace_id": "tr_1_a434dc27af9120e6_801d3a53097a559f_41dd9ad70f011b6c",
+      "备注": "handoff by LLM: 机器人告知当前没有人工客服可用，并继续自行回答，未执行转接操作。; handoff source=llm; actual handoff did not match expected value; FAQ候选为空; 机器人重复了之前的回复，没有针对用户新问题给出回答。; trace_id=tr_1_a434dc27af9120e6_801d3a53097a559f_41dd9ad70f011b6c"
+    },
+    {
+      "用例ID": "TC-H70-020-H-C02",
+      "结果": "FAIL",
+      "知识库是否命中": "否",
+      "日志转人工": "否",
+      "转人工是否准确": "否",
+      "服务端真实耗时": 0,
+      "trace_id": "tr_1_a434dc27af9120e6_bf6c56df81e42c74_0455e5f03dfae968",
+      "备注": "handoff by LLM: 机器人仅表示人工不可用并继续自行处理，未实际转接人工。; handoff source=llm; actual handoff did not match expected value; FAQ候选为空; 未直接回答用户关于支付押金地点的问题，而是转移话题。; trace_id=tr_1_a434dc27af9120e6_bf6c56df81e42c74_0455e5f03dfae968"
+    }
+  ]
+}

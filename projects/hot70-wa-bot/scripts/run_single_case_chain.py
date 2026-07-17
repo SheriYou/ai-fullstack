@@ -116,9 +116,8 @@ def main() -> None:
     exec_case_id = args.case_id.strip()
     for cid, question in prompts:
         before = len(all_texts)
-        # Keep both prerequisite N turn and H-C follow-up turn in one execution session
-        # under the same sender_name (the executing H-C case id).
-        st, wh = client.webhook(args.channel, wa, question, sender_name=exec_case_id)
+        turn_sender_name = cid if cid.endswith("-N") else exec_case_id
+        st, wh = client.webhook(args.channel, wa, question, sender_name=turn_sender_name)
         ok = st == 200 and (wh.get("data") or {}).get("status") == "success"
         all_texts = wait_new_outbound(
             client=client,

@@ -55,6 +55,7 @@ OUT_FIELDS = [
     "日志客户标签",
     "客户标签是否准确",
     "日志转人工",
+    "转人工原因",
     "转人工是否准确",
     "实际回复内容（英文）",
     "语义是否合理",
@@ -81,7 +82,7 @@ def normalize_handoff(v: str) -> str:
         return "true"
     if raw in ("否", "no", "NO", "false", "FALSE"):
         return "false"
-    if raw in ("视情况", "conditional"):
+    if raw.lower() in ("视情况", "conditional", "depends on the situation", "depends on situation"):
         return "conditional"
     return "empty"
 
@@ -168,18 +169,91 @@ def make_follow_up_cn(scene: str, base_q_cn: str) -> str:
     return f"我遇到这个情况：{scene}"
 
 
+def contains_cjk(text: str) -> bool:
+    return bool(re.search(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]", text or ""))
+
+
+SCENE_FOLLOW_UP_EN = {
+    "涉及价格不确定": "The price I saw seems uncertain. Can you confirm the final price?",
+    "商品状态变化": "The product status seems to have changed. Can you check the latest availability?",
+    "特殊报价": "I received a special quote. Can you confirm whether it is valid?",
+    "用户预订失败": "My pre-order submission failed. What should I do next?",
+    "入口打不开": "The pre-order page will not open for me. How can I complete the booking?",
+    "流程异常": "Something went wrong during the booking process. Can you help me check it?",
+    "用户询问特殊优惠": "Are there any special promotions available for my order?",
+    "权益领取失败": "I could not claim my pre-order benefits. Can you help me check why?",
+    "优惠是否可叠加": "Can this offer be combined with other discounts?",
+    "涉及实时库存": "Can you check the real-time stock at my selected store?",
+    "门店异常": "The store information looks abnormal. Can you help me verify it?",
+    "城市未覆盖": "My city does not appear in the store list. What should I do?",
+    "具体门店确认": "Can you confirm whether a specific store supports pickup for this model?",
+    "用户仍不信任": "I am still not sure this WhatsApp account is official. Can you verify it?",
+    "要求人工确认": "Can someone verify that this is the official Infinix WhatsApp channel?",
+    "具体分期方案": "Can you confirm the available installment plans for this purchase?",
+    "门店报价不一致": "The store quoted a different price. Can you confirm which price is correct?",
+    "特殊价格": "Can you confirm whether a special price applies to my purchase?",
+    "优惠叠加": "Can I stack this discount with another promotion?",
+    "价格争议时": "There is a dispute about the price. Can you help confirm the correct amount?",
+    "用户询问收据": "Can I get a receipt for my payment?",
+    "发票": "Can I get an invoice for this purchase?",
+    "门店无法收款时": "The store cannot accept my payment. What should I do?",
+    "用户已享受其他优惠": "I already used another promotion. Can I still get this offer?",
+    "门店金额不一致": "The amount shown at the store is different. Can you help confirm it?",
+    "付款争议时": "There is a dispute about my payment. Can you help verify it?",
+    "用户已提交但门店查不到记录": "I submitted my booking, but the store cannot find my record. Can you check it?",
+    "没收到确认信息": "I did not receive a confirmation message after booking. Can you check my status?",
+    "是否能保留名额时": "Can my booking slot be kept if the store cannot find my record?",
+    "用户支付失败": "My payment failed. What should I do next?",
+    "要求线上转账时": "The store asked me to transfer money online. Can you confirm if that is allowed?",
+    "多台购买": "I want to buy multiple units. Can you confirm whether that is supported?",
+    "团购": "Can you confirm whether group purchases are supported?",
+    "批量采购": "Can you help confirm the process for bulk purchases?",
+    "门店特殊处理时": "The store offered special handling. Can you confirm whether that is valid?",
+    "用户强烈要求某一颜色": "I really want a specific color. Can you help confirm availability?",
+    "查询具体门店颜色库存": "Can you check color availability at a specific store?",
+    "投诉颜色不一致时": "The color I received is not what I expected. Can you help check this?",
+    "用户问赠品型号": "Can you confirm the exact gift model for this promotion?",
+    "颜色": "Can you confirm which gift color is available?",
+    "库存": "Can you confirm whether the gift is still in stock?",
+    "是否一定有": "Can you confirm whether the gift is guaranteed with my purchase?",
+    "是否可换时": "Can I exchange the gift if the model or color is not suitable?",
+    "用户问激活多久生效": "How long does SIM activation take before the benefit becomes valid?",
+    "赠品未收到": "I have not received the gift. Can you help me check it?",
+    "门店不给赠品": "The store refused to provide the gift. Can you help me verify eligibility?",
+    "SIM 激活异常时": "My SIM activation seems abnormal. Can you help me check it?",
+    "用户对激活规则有异议": "I disagree with the SIM activation rule. Can you help confirm it?",
+    "SIM 激活失败": "My SIM activation failed. Can you help me resolve it?",
+    "赠品资格争议时": "There is a dispute about my gift eligibility. Can you help confirm it?",
+    "用户询问具体门店是否属于 IBP": "Can you confirm whether this specific store is an IBP store?",
+    "IBO": "Can you confirm whether this specific store is an IBO store?",
+    "门店资质时": "Can you verify whether this store is authorized for the promotion?",
+    "用户询问具体瓦数": "Can you confirm the exact charging wattage for this model?",
+    "充电时长时": "Can you confirm how long it takes to fully charge this phone?",
+    "用户询问具体保修范围": "Can you confirm the exact warranty coverage for this device?",
+    "配件保修": "Can you confirm whether accessories are covered by warranty?",
+    "延保时": "Can you confirm whether extended warranty is available?",
+    "远程无法解决的硬件故障": "The hardware issue cannot be solved remotely. What should I do next?",
+    "保修争议时": "There is a dispute about my warranty coverage. Can you help confirm it?",
+    "用户询问特定门店支持的付款方式": "Can you confirm which payment methods a specific store supports?",
+    "支付失败时": "My payment failed at the store. Can you help me check what happened?",
+    "用户需要详细参数对比": "Can you provide a detailed specification comparison before I decide?",
+    "选购建议时": "Can you help me choose the best option for my needs?",
+    "用户询问特定门店营业时间时": "Can you confirm the business hours of a specific store?",
+}
+
+
 def make_follow_up_en(scene: str, base_q_en: str) -> str:
     scene = (scene or "").strip()
     base_q_en = (base_q_en or "").strip()
-    if not scene:
-        return "Could you help me with this issue?"
-    # Ensure H-case prompt is follow-up and not identical to base N question.
+    if scene in SCENE_FOLLOW_UP_EN:
+        return SCENE_FOLLOW_UP_EN[scene]
+    if not scene or contains_cjk(scene) or not re.search(r"[A-Za-z]", scene):
+        return "Could you help me resolve this issue related to my request?"
     if scene.lower() == base_q_en.lower():
-        return f"Could you clarify what I should do about {scene}?"
+        return "Could you clarify what I should do about this issue?"
     if re.search(r"[?]$", scene):
         return scene
     return f"Could you help me with {scene}?"
-
 
 def has_handoff_hint_en(text: str) -> bool:
     t = (text or "").lower()
@@ -229,6 +303,8 @@ def llm_follow_up_en(scene: str, base_q_en: str, category: str) -> str:
     out = re.sub(r"\s+", " ", out)
     if not out:
         raise RuntimeError("empty llm follow-up")
+    if contains_cjk(out) or not re.search(r"[A-Za-z]", out):
+        raise RuntimeError("llm follow-up is not English")
     if out.lower() == base_q_en.lower():
         raise RuntimeError("llm follow-up equals base question")
     if re.search(r"(?i)\b(i\s*['’]?m|i am)\s+facing\s+this\s+issue\s*:", out):
@@ -300,7 +376,15 @@ def main() -> int:
     if not rows:
         raise RuntimeError("FAQ csv is empty")
 
-    missing_cols = [c for c in REQUIRED_COLS if c not in (rows[0].keys())]
+    header = set(rows[0].keys())
+    if "是否需要转人工" not in header and "是否转人工（英文）" in header:
+        for row in rows:
+            row["是否需要转人工"] = row.get("是否转人工（英文）", "")
+    if "转人工条件（英文）" not in header:
+        for row in rows:
+            row["转人工条件（英文）"] = row.get("转人工条件/备注", "")
+
+    missing_cols = [c for c in REQUIRED_COLS if c not in rows[0].keys()]
     if missing_cols:
         raise RuntimeError(f"FAQ csv missing columns: {missing_cols}")
 
@@ -378,7 +462,10 @@ def main() -> int:
             for j, scene in enumerate(scenes, start=1):
                 h_row = empty_result_row()
                 follow_cn = make_follow_up_cn(scene, q_cn)
-                if args.disable_llm_followup:
+                if scene in SCENE_FOLLOW_UP_EN:
+                    follow_en = make_follow_up_en(scene, q_en)
+                    llm_followup_fallback += 1
+                elif args.disable_llm_followup:
                     follow_en = make_follow_up_en(scene, q_en)
                     llm_followup_fallback += 1
                 else:
@@ -455,3 +542,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+

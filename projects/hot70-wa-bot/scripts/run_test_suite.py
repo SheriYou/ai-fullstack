@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REPORTS = ROOT / "reports"
 DATA = ROOT / "data"
 
-DEFAULT_BASE = "https://uat-paas.transsion.com/whatsapp-bot-service/api"
+DEFAULT_BASE = "https://test-paas.transsion.com/whatsapp-bot-service/api"
 DEFAULT_USER = "admin"
 DEFAULT_PASS = "admin123456"
 WEBHOOK_MAX_ATTEMPTS = 3
@@ -60,13 +60,18 @@ class Client:
         return status == 200 and data.get("success") is not False
 
     def webhook(
-        self, channel: str, whatsapp_id: str, text: str, sender_name: str = "WhatsApp User"
+        self,
+        channel: str,
+        whatsapp_id: str,
+        text: str,
+        sender_name: str = "WhatsApp User",
+        message_id: str | None = None,
     ) -> tuple[int, dict]:
         payload = {
             "whatsapp_id": whatsapp_id,
             "sender_name": sender_name,
             "content": text,
-            "message_id": f"test-{uuid.uuid4().hex[:12]}",
+            "message_id": message_id or f"test-{uuid.uuid4().hex[:12]}",
             "direction": "inbound",
         }
         url = f"{self.base}/webhook/{channel}"
@@ -109,19 +114,21 @@ class Client:
         _, data = self._call("GET", f"/business-lines/{business_line_id}/messages/{whatsapp_id}")
         inner = data.get("data") or {}
         if isinstance(inner, dict):
-            return inner.get("data") or []
+            return inner.get("data") or inner.get("records") or []
         return inner if isinstance(inner, list) else []
 
     def conversations(self, business_line_id: int) -> list:
         _, data = self._call("GET", f"/business-lines/{business_line_id}/conversations")
         inner = data.get("data") or {}
         if isinstance(inner, dict):
-            return inner.get("data") or []
+            return inner.get("data") or inner.get("records") or []
         return inner if isinstance(inner, list) else []
 
 
 def find_conversation(conversations: list, whatsapp_id: str) -> dict | None:
     for c in conversations:
+        if not isinstance(c, dict):
+            continue
         if c.get("whatsapp_id") == whatsapp_id or c.get("whatsappId") == whatsapp_id:
             return c
     return None
@@ -146,14 +153,11 @@ def session_id_from(sess: dict) -> str:
 
 
 def run_smoke(client: Client, channel: str, bl: int, wa: str, wait: float) -> list[dict]:
-    """Formal 冒烟用例（TC-SMOKE-*，verify_profile 驱动）。"""
     from test_case_runner import run_smoke_formal_cases
-
     formal = run_smoke_formal_cases(client, channel, bl, max(wait, 4.0))
-    out = []
-    for r in formal:
-        out.append({
-            "id": r["case_id"],
+    return [
+        {
+            "id": r.get("case_id", ""),
             "input": "",
             "whatsapp_id": r.get("whatsapp_id", ""),
             "session_id": r.get("session_id", ""),
@@ -161,71 +165,34 @@ def run_smoke(client: Client, channel: str, bl: int, wa: str, wait: float) -> li
             "outbound_preview": r.get("outbound_preview", ""),
             "note": r.get("notes", ""),
             "notes": r.get("notes", ""),
-        })
-    return out
+        }
+        for r in formal
+    ]
 
 
 def write_report(smoke: list, corpus: list, meta: dict):
-    """轻量报告写入 runs/{run_id}/suite-report.md（不在 reports 根目录落盘）。"""
-    from run_bundle import run_dir
-
+    """Write the legacy suite report for compatibility."""
     REPORTS.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-    run_d = run_dir(ts)
-    run_d.mkdir(parents=True, exist_ok=True)
-    out = run_d / "suite-report.md"
-    sp = sum(1 for r in smoke if r["status"] == "PASS")
-    sf = sum(1 for r in smoke if r["status"] == "FAIL")
-    cp = sum(1 for r in corpus if r["status"] == "PASS")
-    cf = sum(1 for r in corpus if r["status"] == "FAIL")
-    cs = sum(1 for r in corpus if r["status"] == "SKIP")
+    out = REPORTS / "suite-report.md"
     lines = [
-        f"# Hot70 测试执行报告",
+        "# Hot70 legacy suite report",
         "",
         f"> {datetime.now().isoformat(timespec='seconds')}",
         "",
-        "## 环境",
+        f"- API: `{meta.get('base', '')}`",
+        f"- channel: `{meta.get('channel', '')}`",
+        f"- business_line_id: `{meta.get('business_line_id', '')}`",
         "",
-        f"- API: `{meta['base']}`",
-        f"- channel: `{meta['channel']}`",
-        f"- business_line_id: `{meta['business_line_id']}`",
-        f"- whatsapp_id (smoke): `{meta['whatsapp_id']}`",
-        "",
-        "## 冒烟 G2",
-        "",
-        f"Pass={sp} Fail={sf}",
-        "",
-        "| ID | 结果 | 输入 | 说明 |",
-        "|----|------|------|------|",
+        "| ID | Status | Input | Note |",
+        "|---|---|---|---|",
     ]
-    for r in smoke:
-        note = r.get("outbound_preview") or r.get("note") or r.get("conversation_status") or ""
-        lines.append(f"| {r['id']} | {r['status']} | {r.get('input','')[:30]} | {str(note)[:50]} |")
-    lines += [
-        "",
-        "## L2 语料",
-        "",
-        "旧 corpus 抽样回归已下线；L2 统一改用 `python scripts/run_kb_metrics_test.py`。",
-        "",
-        "| ID | 结果 | 输入 | task_type |",
-        "|----|------|------|-----------|--------------|",
-    ]
-    for r in corpus:
-        lines.append(f"| {r.get('id','')} | {r['status']} | {str(r.get('input',''))[:40]} | {r.get('task_type','')} | {r.get('customer_tag','')} |")
-    lines += [
-        "",
-        "## 说明",
-        "",
-        "- webhook 使用 LocalGateway 格式：`whatsapp_id` + `content` + `message_id`",
-        "- `/api/webhook/channels/...` 在测试环境返回 404，已改用 `/api/webhook/{channelKey}`",
-        "- 智齿 external-handoff / 真机 WA 未在本轮执行",
-        "- 知识库指标专项：`scripts/run_kb_metrics_test.py`",
-        "",
-    ]
-    out.write_text("\n".join(lines), encoding="utf-8")
-    print(f"report={out}")
+    for row in smoke + corpus:
+        lines.append(
+            f"| {row.get('id', '')} | {row.get('status', '')} | "
+            f"{str(row.get('input', ''))[:40]} | {str(row.get('note', ''))[:80]} |"
+        )
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return out
-
 
 def main():
     base = DEFAULT_BASE

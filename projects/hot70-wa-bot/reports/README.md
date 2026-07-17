@@ -1,9 +1,9 @@
-﻿# 指标专项报告
+# 指标专项报告
 
 ## 运行
 
 ```powershell
-python scripts/run_kb_metrics_test.py
+python scripts/run_kb_metrics_test.py --batch-index 1
 ```
 
 ## 结果目录
@@ -11,14 +11,14 @@ python scripts/run_kb_metrics_test.py
 每次运行写入：
 
 ```text
-reports/runs/{run_id}/
+reports/
 ```
 
 主要产物：
 
-- `kb-metrics-results.csv`：逐用例结果与 Trace 字段
-- `kb-metrics-summary.json`：指标汇总
-- `kb-metrics-report.md`：可读测试报告
+- `cases-results.jsonl`：逐条追加的本地结果与 Trace 字段
+- `batches/batch-*.json`：批次状态
+- 聚合产物：`aggregated-results.csv`、`aggregated-results.json`、`aggregated-report.md`
 
 指标专项以 `prd/Hot70_机器人_知识库指标测试.csv` 为唯一正式用例来源。
 

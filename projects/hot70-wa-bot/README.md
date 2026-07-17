@@ -1,4 +1,4 @@
-﻿# Hot70 指标专项测试
+# Hot70 指标专项测试
 
 当前项目聚焦一条独立链路：
 
@@ -15,7 +15,7 @@
 ## 主入口
 
 ```powershell
-python scripts/run_kb_metrics_test.py
+python scripts/run_kb_metrics_test.py --batch-index 1
 ```
 
 该入口负责：
@@ -24,7 +24,7 @@ python scripts/run_kb_metrics_test.py
 2. 按用例链规则执行 webhook / session / messages 流程；
 3. 读取 Trace 中的 `detected_intent`、`knowledge_hit`、`customer_tag`、`handoff_flag`、`latency_ms`；
 4. 校验回复事实、LOCAL 转人工和多轮会话结果；
-5. 输出指标结果、汇总 JSON 和 Markdown 报告。
+5. 每次固定执行一个最多 10 条用例的批次，逐条持久化结果；全部批次完成后单独聚合。
 
 ## 核心指标
 
@@ -50,11 +50,11 @@ python scripts/run_kb_metrics_test.py
 
 ## 输出
 
-每次运行归档在 `reports/runs/{run_id}/`，主要包括：
+结果分层写入 `reports/`，执行脚本只负责一个批次：
 
-- `kb-metrics-results.csv`
-- `kb-metrics-summary.json`
-- `kb-metrics-report.md`
+- `cases-results.jsonl`：逐条追加的本地执行结果
+- `batches/batch-*.json`：批次状态
+- 聚合产物：`aggregated-results.csv`、`aggregated-results.json`、`aggregated-report.md`
 
 ## 归档内容
 
