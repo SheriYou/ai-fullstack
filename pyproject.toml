@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-human-test"
+version = "0.1.0"
+description = "Agent-style chatbot evaluation framework"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[project.scripts]
+aht-agent = "chatbot_eval.agent:main"
+
+[tool.setuptools.packages.find]
+include = ["chatbot_eval*", "profiles*"]

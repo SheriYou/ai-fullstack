@@ -1,37 +1,118 @@
-# Agent + 人工 测试框架
+# Agent Human Test
 
-独立于 ship-pipeline 的轻量测试框架，适用于 **外部集成型需求**（WhatsApp Bot、第三方 API、运营内容驱动等）。
+通用客服机器人评估引擎，当前内置 `hot70` profile。
 
-## 结构
+## 目录结构
 
-```
+```text
 agent-human-test/
-├── FRAMEWORK.md          # 通用流程（L0-L4、G0-G4、Agent 编制）
-├── agents/               # 可复用 Agent 角色定义（Cursor 子 Agent / Prompt）
-├── templates/            # 跨项目模板
-├── lib/                  # 共享脚本
-├── scripts/              # 框架级脚本（含 daily_cleanup）
-└── projects/<项目>/      # 各需求实例（语料、报告、阻塞项）
+├── chatbot_eval/              # 通用引擎：生成、构建、执行、日志信号、报告
+├── profiles/
+│   └── hot70/
+│       ├── profile.json       # Hot70 数据源、路径和默认配置
+│       ├── data/              # 知识库 CSV 与生成后的测试用例 CSV
+│       ├── tmp/               # scenarios.json / results.jsonl
+│       ├── reports/           # reports/runs/{run_id}/
+│       └── config.env.example
+└── run_eval.py                # Hot70 全链路便捷入口
 ```
 
-## 产出物清理
+## 主链路
 
-```bash
-python scripts/daily_cleanup.py              # 每日 1 次，保留 7 天
-python scripts/daily_cleanup.py --dry-run    # 预览
+```text
+Feishu Base / local knowledge CSV
+  ↓
+chatbot_eval.generate_cases
+  ↓
+cases.csv
+  ↓
+chatbot_eval.build_scenarios
+  ↓
+scenarios.json
+  ↓
+chatbot_eval.run
+  ↓
+results.jsonl
+  ↓
+chatbot_eval.report
+  ↓
+CSV / JSON / Markdown reports
 ```
 
-Windows 定时： `.\scripts\schedule_daily_cleanup.ps1`
+## 快速运行 Hot70
 
-## 新项目接入（10 分钟）
+```powershell
+copy profiles\hot70\config.env.example profiles\hot70\config.env
+python run_eval.py --generate-cases --disable-llm-followup --limit-groups 3 --workers 1
+```
 
-1. 复制 `projects/_template/` → `projects/<新项目名>/`
-2. 填 `blocking.md`、`README.md`
-3. 按 `FRAMEWORK.md` 跑 G0 → G1 → 冒烟 → L2
-4. 在 Cursor 中 `@agents/test-factory.md` 等派发任务
+## Agent 化入口
 
-## 当前项目
+框架新增了一个轻量 Agent 入口：`chatbot_eval.agent`。它会把简短的人类请求解析成评测计划，
+执行现有链路，并在生成报告后读取最新产物，输出本次 run 的判定分布和失败 Top N。
 
-| 项目 | 路径 | 测试计划 |
-|------|------|----------|
-| Hot70 WhatsApp Bot | `projects/hot70-wa-bot/` | `docs/Hot70_WhatsApp_Bot_Test_Plan.md` |
+如果直接使用 `python -m chatbot_eval.agent`，请先进入仓库根目录：
+
+```powershell
+cd D:\CMP\agent-human-test
+python -m chatbot_eval.agent "跑 P0 3组 并发1"
+```
+
+也可以安装成本地命令，之后在任意目录运行：
+
+```powershell
+python -m pip install -e D:\CMP\agent-human-test
+aht-agent "跑 P0 3组 并发1"
+```
+
+```powershell
+# 先只看计划，不真正发送消息
+python -m chatbot_eval.agent "生成用例 跑 P0 3组 并发1 不用LLM追问" --dry-run
+
+# 执行一次小规模冒烟评测，并生成报告摘要
+python -m chatbot_eval.agent "跑 P0 3组 并发1"
+
+# 开启 LLM 语义判定和客户标签判定
+python -m chatbot_eval.agent "跑 P1 10组 并发2 LLM judge 标签判定"
+
+# 不跑测试，只读取最近一次报告摘要
+python -m chatbot_eval.agent --show-latest
+```
+
+当前自然语言解析支持：
+
+- 阶段：`P0` / `P1` / `P2`
+- 组数：`3组`、`限制 10 组`、`limit-groups 10`
+- 并发：`并发1`、`workers=2`
+- 用例：`生成用例`、`刷新用例`、`不用LLM追问`
+- 判定：`LLM judge`、`语义判定`、`标签判定`
+- 数据：`保留数据`、`不清理数据`
+
+## 分段运行
+
+```powershell
+python -m chatbot_eval.generate_cases --source local
+python -m chatbot_eval.generate_cases --source feishu
+python -m chatbot_eval.generate_cases --case-type ood --ood-count 200
+python -m chatbot_eval.build_scenarios
+python -m chatbot_eval.run --rebuild --limit-groups 3 --workers 1 --results profiles/hot70/tmp/results.jsonl
+python -m chatbot_eval.report --results profiles/hot70/tmp/results.jsonl
+```
+
+默认生成知识库用例时会纳入 `状态=已确认` 和 `状态=后续需要更新`；如需调整可使用
+`--status 已确认` 或 `--status all`。执行时如果 `cases.csv` 比 `scenarios.json` 新，
+或表头已变化，会自动重建 `scenarios.json`。
+
+OOD 用例默认输出：
+
+```text
+profiles/hot70/data/Hot70_OOD_无关边界测试用例.csv
+```
+
+OOD 规则会复用测试用例模板，默认生成 200 条，包含基础用例和同会话条件追问；语料覆盖招聘、闲聊、辱骂、外链/推广、自动回复探测、竞品、医疗、金融、隐私、无意义输入等无关/边界场景，并过滤机械化表达。
+
+飞书来源默认使用 `profiles/hot70/profile.json` 中记录的 Base 链接：
+
+```text
+https://transsioner.feishu.cn/base/FCPTbUJySadmh1sHlEZcgESLnWc?table=tbltryrzbigm3WgV&view=vewR58QybE
+```

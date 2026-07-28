@@ -1,0 +1,10 @@
+{
+  "name": "hot70",
+  "title": "Hot70 WhatsApp Bot",
+  "base_url": "https://transsioner.feishu.cn/base/FCPTbUJySadmh1sHlEZcgESLnWc?table=tbltryrzbigm3WgV&view=vewR58QybE",
+  "knowledge_csv": "data/Hot 70 FAQ知识库_FAQ知识库_全部FAQ.csv",
+  "cases_csv": "data/Hot70_机器人_知识库指标测试.csv",
+  "scenarios_json": "tmp/scenarios.json",
+  "results_jsonl": "tmp/results.jsonl",
+  "reports_dir": "reports"
+}

@@ -1,12 +1,13 @@
-# 环境配置（保留 example）
-config.env
+# Environment
 *.env
-!.env.example
+!*.env.example
+config.env
 !config.env.example
 
 # Python
 __pycache__/
 *.pyc
+*.egg-info/
 .venv/
 venv/
 
@@ -17,66 +18,24 @@ id_rsa
 id_rsa.pub
 credentials.json
 
-# 编辑器
+# Editor / OS
 .vscode/
 .idea/
 *.swp
-
-# OS
 .DS_Store
 Thumbs.db
 
-# 清理状态与日志（本地）
+# Local state
 .cleanup/
 
-# =============================================================================
-# 测试执行产出物 — 所有 projects/* 通用（push 远程时只传代码，不传 run 结果）
-# 规则：reports/ 下静态文档可入库；L1/L2/L3 执行生成的报告/CSV/JSON 不入库
-# =============================================================================
+# Profile runtime outputs
+profiles/*/tmp/
+profiles/*/reports/latest-run.json
+profiles/*/reports/runs/
+profiles/*/reports/summary_test_runs/
+profiles/*/reports/*.tmp
 
-# run 归档目录（test-report、bug-registry、summary 等）
-projects/*/reports/runs/
-
-# 根目录 run 副本与指针
-projects/*/reports/latest-run.json
-projects/*/reports/full-test-run.log
-projects/*/reports/test-results-latest.csv
-projects/*/reports/test-results-corpus-latest.csv
-projects/*/reports/test-results-*.csv
-projects/*/reports/test-results-corpus-*.csv
-projects/*/reports/test-run-*.md
-projects/*/reports/test-run-*.docx
-projects/*/reports/test-run-summary-*.json
-
-# Agent 批量执行报告（RegressionRunner / ReportScribe 产出）
-projects/*/reports/offline-eval-*.md
-projects/*/reports/metrics-*.md
-
-# L3 临时截图/二维码等
-projects/*/reports/feishu-auth-qrcode.png
-projects/*/reports/*.png
-projects/*/reports/*.jpg
-!projects/*/reports/**/README.png
-
-# 本地执行日志
-projects/*/logs/
-projects/*/*.log
-
-# PRD下脚本生成产物（不入库）
-projects/*/prd/*.bak.csv
-projects/*/prd/*.runbackup-*.csv
-projects/*/prd/*Sheet1*.csv
-projects/*/prd/*指标测试*.csv
-
-# 静态参考文档仍入库（显式放行）
-!projects/*/reports/README.md
-!projects/*/reports/*-review*.md
-!projects/*/reports/corpus-review-for-ops.md
-!projects/*/reports/e2e-log.csv
-# 分层测试执行结果：本地保留，不上传 Git
-projects/*/reports/cases-results.jsonl
-projects/*/reports/batches/
-projects/*/reports/aggregated-results.csv
-projects/*/reports/aggregated-results.json
-projects/*/reports/aggregated-report.md
-projects/*/reports/*.tmp
+# Generated / backup data
+profiles/*/data/*.bak.csv
+profiles/*/data/*.runbackup-*.csv
+profiles/*/data/*Sheet1*.csv
