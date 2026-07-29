@@ -227,6 +227,7 @@ def run_group(
     answer_threshold: float,
     tag_wait_s: float = 0.0,
     phase: str | None = None,
+    stop_on_failure: bool = False,
 ) -> list[dict]:
     group_id = group["group_id"]
     turns = group["turns"]
@@ -251,6 +252,8 @@ def run_group(
                 tag_wait_s=tag_wait_s,
             )
         )
+        if stop_on_failure and results[-1]["verdict"] != "PASS":
+            return results
 
     for turn in condition_turns:
         wa_id = _wa_id(run_tag, turn["case_id"])
@@ -284,6 +287,8 @@ def run_group(
                     )
                 )
                 continue
+            if stop_on_failure and setup[0]["verdict"] != "PASS":
+                return results
         context = [base_turn["query"], turn["query"]] if base_turn else [turn["query"]]
         results.extend(
             _send_turn(
@@ -296,6 +301,8 @@ def run_group(
                 tag_wait_s=tag_wait_s,
             )
         )
+        if stop_on_failure and results[-1]["verdict"] != "PASS":
+            return results
     return results
 
 
@@ -340,6 +347,107 @@ def _filter_groups_by_phase(groups: list[dict], phase: str | None) -> list[dict]
     return filtered
 
 
+def _write_results(results_path: str | Path, turns: list[dict], run_id: str) -> Path:
+    path = Path(results_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        for turn in turns:
+            turn["run_id"] = run_id
+            f.write(json.dumps(turn, ensure_ascii=False) + "\n")
+    return path
+
+
+def _load_results(results_path: str | Path, run_id: str | None = None) -> list[dict]:
+    path = Path(results_path)
+    turns: list[dict] = []
+    with path.open(encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            turn = json.loads(line)
+            if run_id and turn.get("run_id") != run_id:
+                continue
+            turns.append(turn)
+    if not turns:
+        suffix = f" for run_id={run_id}" if run_id else ""
+        raise RuntimeError(f"empty results file{suffix}: {path}")
+    return turns
+
+
+def _apply_llm_judges(turns: list[dict], args: argparse.Namespace, run_id: str) -> None:
+    results_path = Path(args.results)
+    if args.llm_judge:
+        from . import judge
+
+        items = [
+            {
+                "case_id": turn["case_id"],
+                "query": turn["query"],
+                "reply": turn["reply"],
+                "expected_handoff": turn["expect"]["handoff"],
+                "answer_keywords": turn["expect"]["answer_keywords"],
+            }
+            for turn in turns
+            if turn["reply"]
+        ]
+        print(f"\nLLM semantic judge: {len(items)} items ...")
+        verdicts = judge.judge_semantic(items)
+        for turn in turns:
+            judgement = verdicts.get(turn["case_id"])
+            if judgement:
+                turn["scores"]["semantic_ok"] = judgement["ok"]
+                turn["scores"]["semantic_reason"] = judgement.get("reason")
+        _write_results(results_path, turns, run_id)
+
+    if args.llm_tag_judge:
+        from . import judge
+
+        items = [
+            {"case_id": turn["case_id"], "user_context": turn.get("user_context") or [turn["query"]]}
+            for turn in turns
+            if turn["verdict"] != "SETUP_ERROR"
+        ]
+        print(f"\nLLM expected-tag judge: {len(items)} items ...")
+        tag_judgements = judge.judge_expected_tags(items)
+        for turn in turns:
+            judgement = tag_judgements.get(turn["case_id"])
+            if not judgement:
+                continue
+            expected_tag = _norm_tag(judgement.get("tag"))
+            actual_tag = _norm_tag(turn["signals"].get("tag"))
+            turn["expect"]["expected_tag"] = expected_tag
+            turn["scores"]["expected_tag_reason"] = judgement.get("reason")
+            turn["scores"]["tag_correct"] = None if expected_tag is None else actual_tag == expected_tag
+            turn["verdict"] = _verdict(turn["scores"])
+        _write_results(results_path, turns, run_id)
+
+
+def _print_summary(turns: list[dict], results_path: str | Path) -> None:
+    print("\n=== 汇总 ===")
+    verdicts: dict[str, int] = {}
+    for turn in turns:
+        verdicts[turn["verdict"]] = verdicts.get(turn["verdict"], 0) + 1
+    print("  判定分布: " + ", ".join(f"{key}={value}" for key, value in sorted(verdicts.items())))
+    print(f"\n结果文件: {results_path}")
+    print("  - 如需报告：python -m chatbot_eval.report --results <results.jsonl>")
+
+
+def _write_report_if_requested(args: argparse.Namespace, turns: list[dict], run_id: str) -> None:
+    if not args.report:
+        return
+    from . import report
+
+    out_dir, _summary = report.write_reports(
+        run_id,
+        [],
+        turns,
+        llm_used=args.llm_judge,
+        llm_tag_used=args.llm_tag_judge,
+        project_root=Path(args.profile_root),
+    )
+    print(f"报告目录: {out_dir}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run chatbot eval scenarios and write results.jsonl.")
     parser.add_argument("--profile-root", default=str(DEFAULT_PROFILE_ROOT))
@@ -354,12 +462,25 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--phase", choices=("P0", "P1", "P2"), help="Only execute cases in this phase.")
     parser.add_argument("--rebuild", action="store_true")
     parser.add_argument("--report", action="store_true", help="Generate reports after writing results.jsonl")
-    parser.add_argument("--keep-data", action="store_true")
+    parser.add_argument("--keep-data", action="store_true", help="Deprecated; data is kept by default.")
+    parser.add_argument("--cleanup-data", action="store_true", help="Delete eval test data after the run.")
+    parser.add_argument("--stop-on-failure", action="store_true", help="Stop after the first non-PASS result.")
+    parser.add_argument("--fail-on-unhealthy", action="store_true", help="Abort if the backend health check fails.")
+    parser.add_argument("--postprocess-only", action="store_true", help="Run LLM judges/report from an existing results file.")
+    parser.add_argument("--run-id", help="Run id to postprocess when results file contains multiple runs.")
     args = parser.parse_args(argv)
     profile_cases_csv, profile_scenarios, profile_results = _default_profile_paths(args.profile_root)
     args.cases_csv = args.cases_csv or str(profile_cases_csv)
     args.scenarios = args.scenarios or str(profile_scenarios)
     args.results = args.results or str(profile_results)
+
+    if args.postprocess_only:
+        report_turns = _load_results(args.results, args.run_id)
+        run_tag = args.run_id or str(report_turns[0].get("run_id") or Path(args.results).stem)
+        _apply_llm_judges(report_turns, args, run_tag)
+        _print_summary(report_turns, args.results)
+        _write_report_if_requested(args, report_turns, run_tag)
+        return 0
 
     payload = _load_or_build(args)
     groups = payload["groups"]
@@ -367,8 +488,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.limit_groups:
         groups = groups[: args.limit_groups]
 
+    if args.fail_on_unhealthy and not harness.backend_healthy():
+        raise RuntimeError(f"backend {harness.BOT_URL} health check failed")
+
     if not harness.backend_healthy():
-        print(f"后端 {harness.BOT_URL} 健康检查未通过，仍尝试执行（回复可能超时）。")
+        print(f"backend {harness.BOT_URL} health check failed; continuing anyway.")
 
     run_tag = _run_id()
     total_turns = sum(
@@ -378,101 +502,55 @@ def main(argv: list[str] | None = None) -> int:
         if not args.phase or turn.get("phase") == args.phase
     )
     print(
-        f"=== 评估开始 run_tag={run_tag} 组数={len(groups)} 轮次={total_turns} "
-        f"并发={args.workers} LLM语义判={'开' if args.llm_judge else '关'} "
-        f"LLM标签判={'开' if args.llm_tag_judge else '关'} ==="
+        f"=== eval start run_tag={run_tag} groups={len(groups)} turns={total_turns} "
+        f"workers={args.workers} llm_judge={'on' if args.llm_judge else 'off'} "
+        f"llm_tag_judge={'on' if args.llm_tag_judge else 'off'} ==="
     )
 
     all_turns: list[dict] = []
-    with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        for result in pool.map(
-            lambda group: run_group(
+    if args.stop_on_failure:
+        for group in groups:
+            result = run_group(
                 group,
                 run_tag,
                 args.answer_threshold,
                 tag_wait_s=10.0 if args.llm_tag_judge else 0.0,
                 phase=args.phase,
-            ),
-            groups,
-        ):
+                stop_on_failure=True,
+            )
             all_turns.extend(result)
-            print(f"进度: {len(all_turns)}/{total_turns}")
+            print(f"progress: {len(all_turns)}/{total_turns}")
+            if any(turn.get("verdict") != "PASS" for turn in result if not turn.get("setup_only")):
+                print("Stop on first failure requested; aborting remaining groups.")
+                break
+    else:
+        with ThreadPoolExecutor(max_workers=args.workers) as pool:
+            for result in pool.map(
+                lambda group: run_group(
+                    group,
+                    run_tag,
+                    args.answer_threshold,
+                    tag_wait_s=10.0 if args.llm_tag_judge else 0.0,
+                    phase=args.phase,
+                ),
+                groups,
+            ):
+                all_turns.extend(result)
+                print(f"进度: {len(all_turns)}/{total_turns}")
 
     report_turns = [turn for turn in all_turns if not turn.get("setup_only")]
+    results_path = _write_results(args.results, report_turns, run_tag)
+    print(f"\n原始执行结果已写入: {results_path}")
 
-    if args.llm_judge:
-        from . import judge
-
-        items = [
-            {
-                "case_id": turn["case_id"],
-                "query": turn["query"],
-                "reply": turn["reply"],
-                "expected_handoff": turn["expect"]["handoff"],
-                "answer_keywords": turn["expect"]["answer_keywords"],
-            }
-            for turn in report_turns
-            if turn["reply"]
-        ]
-        print(f"\nLLM 语义判定：{len(items)} 条 ...")
-        verdicts = judge.judge_semantic(items)
-        for turn in report_turns:
-            judgement = verdicts.get(turn["case_id"])
-            if judgement:
-                turn["scores"]["semantic_ok"] = judgement["ok"]
-                turn["scores"]["semantic_reason"] = judgement.get("reason")
-
-    if args.llm_tag_judge:
-        from . import judge
-
-        items = [
-            {"case_id": turn["case_id"], "user_context": turn.get("user_context") or [turn["query"]]}
-            for turn in report_turns
-            if turn["verdict"] != "SETUP_ERROR"
-        ]
-        print(f"\nLLM 客户标签期望判定：{len(items)} 条 ...")
-        tag_judgements = judge.judge_expected_tags(items)
-        for turn in report_turns:
-            judgement = tag_judgements.get(turn["case_id"])
-            if not judgement:
-                continue
-            expected_tag = _norm_tag(judgement.get("tag"))
-            actual_tag = _norm_tag(turn["signals"].get("tag"))
-            turn["expect"]["expected_tag"] = expected_tag
-            turn["scores"]["expected_tag_reason"] = judgement.get("reason")
-            turn["scores"]["tag_correct"] = None if expected_tag is None else actual_tag == expected_tag
-            turn["verdict"] = _verdict(turn["scores"])
-
-    results_path = Path(args.results)
-    results_path.parent.mkdir(parents=True, exist_ok=True)
-    with results_path.open("w", encoding="utf-8") as f:
-        for turn in report_turns:
-            turn["run_id"] = run_tag
-            f.write(json.dumps(turn, ensure_ascii=False) + "\n")
-
-    print("\n=== 汇总 ===")
-    verdicts: dict[str, int] = {}
-    for turn in report_turns:
-        verdicts[turn["verdict"]] = verdicts.get(turn["verdict"], 0) + 1
-    print("  判定分布: " + ", ".join(f"{key}={value}" for key, value in sorted(verdicts.items())))
-    print(f"\n结果文件: {results_path}")
-    print("  - 如需报告：python -m chatbot_eval.report --results <results.jsonl>")
-
-    if args.report:
-        from . import report
-
-        out_dir, _summary = report.write_reports_from_results(
-            results_path,
-            profile_root=Path(args.profile_root),
-            llm_used=args.llm_judge,
-            llm_tag_used=args.llm_tag_judge,
-        )
-        print(f"报告目录: {out_dir}")
-
-    if args.keep_data:
-        print(f"\n（--keep-data）保留本轮 DB 行，前缀 eval{run_tag}")
-    else:
-        cleanup.purge(f"eval{run_tag}")
+    try:
+        _apply_llm_judges(report_turns, args, run_tag)
+        _print_summary(report_turns, results_path)
+        _write_report_if_requested(args, report_turns, run_tag)
+    finally:
+        if args.cleanup_data:
+            cleanup.purge(f"eval{run_tag}")
+        else:
+            print(f"\n(default) keeping DB rows with prefix eval{run_tag}; pass --cleanup-data to delete them.")
     return 0
 
 

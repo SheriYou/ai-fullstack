@@ -38,7 +38,8 @@ class EvalAgentPlan:
     workers: int = 6
     llm_judge: bool = False
     llm_tag_judge: bool = False
-    keep_data: bool = False
+    keep_data: bool = True
+    cleanup_data: bool = False
     extra_run_args: list[str] = field(default_factory=list)
 
     def run_args(self) -> list[str]:
@@ -57,8 +58,8 @@ class EvalAgentPlan:
             args.append("--llm-judge")
         if self.llm_tag_judge:
             args.append("--llm-tag-judge")
-        if self.keep_data:
-            args.append("--keep-data")
+        if self.cleanup_data:
+            args.append("--cleanup-data")
         args.extend(self.extra_run_args)
         return args
 
@@ -82,6 +83,7 @@ class EvalAgentPlan:
             "llm_judge": self.llm_judge,
             "llm_tag_judge": self.llm_tag_judge,
             "keep_data": self.keep_data,
+            "cleanup_data": self.cleanup_data,
             "run_args": self.run_args(),
         }
 
@@ -146,6 +148,10 @@ def parse_request(request: str, defaults: EvalAgentPlan | None = None) -> EvalAg
 
     if _has_any(text, ("保留数据", "不清理数据")) or "keep data" in lowered:
         plan.keep_data = True
+
+    if _has_any(text, ("清理数据", "删除测试数据", "删除数据", "自动删除")) or "cleanup data" in lowered:
+        plan.keep_data = False
+        plan.cleanup_data = True
 
     return plan
 
@@ -274,7 +280,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--workers", type=int)
     parser.add_argument("--llm-judge", action="store_true")
     parser.add_argument("--llm-tag-judge", action="store_true")
-    parser.add_argument("--keep-data", action="store_true")
+    parser.add_argument("--keep-data", action="store_true", help="Deprecated; data is kept by default.")
+    parser.add_argument("--cleanup-data", action="store_true", help="Delete eval test data after the run.")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--show-latest", action="store_true", help="Only summarize the latest report.")
     parser.add_argument("--extra-run-arg", action="append", default=[], help="Forward one raw arg to chatbot_eval.run.")
@@ -299,6 +306,9 @@ def main(argv: list[str] | None = None) -> int:
     plan.llm_judge = plan.llm_judge or args.llm_judge
     plan.llm_tag_judge = plan.llm_tag_judge or args.llm_tag_judge
     plan.keep_data = plan.keep_data or args.keep_data
+    plan.cleanup_data = args.cleanup_data or plan.cleanup_data
+    if plan.cleanup_data:
+        plan.keep_data = False
     plan.extra_run_args = args.extra_run_arg
 
     try:
