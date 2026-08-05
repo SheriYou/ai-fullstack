@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import build_scenarios, cleanup, harness, signals
+from .scoring import score_handoff
 
 DEFAULT_PROFILE_ROOT = Path(__file__).resolve().parents[1] / "profiles" / "hot70"
 DEFAULT_SCENARIOS = DEFAULT_PROFILE_ROOT / "tmp" / "scenarios.json"
@@ -56,9 +57,11 @@ def score_turn(turn: dict, sig: dict, reply: str | None, answer_threshold: float
     kb_hit_correct = None
     if not expect["handoff"] and not sig["handoff"]:
         kb_hit_correct = sig["kb_hit"] == expect["kb_should_hit"]
+    handoff_correct, handoff_reason = score_handoff(expect["handoff"], sig["handoff"], reply)
     return {
         "kb_hit_correct": kb_hit_correct,
-        "handoff_correct": sig["handoff"] == expect["handoff"],
+        "handoff_correct": handoff_correct,
+        "handoff_reason": handoff_reason,
         "tag_correct": tag_correct,
         "answer_keywords": keywords,
         "answer_matched": len(matched),

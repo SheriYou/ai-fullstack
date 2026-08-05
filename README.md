@@ -99,6 +99,38 @@ python -m chatbot_eval.run --rebuild --limit-groups 3 --workers 1 --results prof
 python -m chatbot_eval.report --results profiles/hot70/tmp/results.jsonl
 ```
 
+## 按需翻译测试提问
+
+多语言翻译不是生成用例的默认步骤；只有明确需要多语言用例时单独执行。默认读取 profile 的用例 CSV，把 `测试数据（英文提问）` 字段翻译为指定语言，并输出一个新 CSV，不覆盖原文件：
+
+```powershell
+python -m chatbot_eval.translate_cases --language Hausa
+```
+
+如需指定输入/输出：
+
+```powershell
+python -m chatbot_eval.translate_cases --language Bangla --input profiles/hot70/data/Hot70_机器人_知识库指标测试.csv --output profiles/hot70/data/Hot70_机器人_知识库指标测试.bn.csv
+```
+
+## 回填表格分析
+
+跑完评测并生成 `回填结果.csv` 后，可以用独立脚本按“人工复核优先”的口径生成报告分析材料：
+
+```powershell
+# 默认读取 profiles/hot70/reports/latest-run.json 指向的最新回填表
+python scripts/analyze_backfill_report.py
+
+# 或指定某个回填表
+python scripts/analyze_backfill_report.py --input profiles/hot70/reports/runs/<run_id>/回填结果.csv
+```
+
+脚本会输出：
+
+- `analysis.md`：可复制到测试报告的指标表、归因汇总和复核明细。
+- `analysis.json`：结构化统计结果，方便后续自动处理。
+- `review_items.csv`：所有指标为【否/待确认/待复核】的数据，附带基于回复内容的归因建议。
+
 默认生成知识库用例时会纳入 `状态=已确认` 和 `状态=后续需要更新`；如需调整可使用
 `--status 已确认` 或 `--status all`。执行时如果 `cases.csv` 比 `scenarios.json` 新，
 或表头已变化，会自动重建 `scenarios.json`。

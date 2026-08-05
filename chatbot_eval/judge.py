@@ -16,12 +16,17 @@ SEMANTIC_SYSTEM = (
 )
 TAG_SYSTEM = (
     "你是客户意向标签质检员。只根据用户在本次会话中的消息，判断这个用户应该被打的客户标签。"
-    "只能从以下枚举中选择一个：已预定未提机、未预定高意向、已提机、无法判断。"
-    "若同时满足多个标签，按 已提机 > 已预定未提机 > 未预定高意向 > 无法判断 的优先级选择。"
+    "只能从以下枚举中选择一个：未识别、未预定低意向、未预定高意向、已预定未提机、已提机。"
+    "标签定义：未识别=闲聊、假设问题、信息不足、招聘、辱骂等；"
+    "未预定低意向=只问活动时间、抽奖、礼品、普通优惠、官方身份；"
+    "未预定高意向=问价格、配置、购买方式、分期、如何预订；"
+    "已预定未提机=明确说已预订、收到确认码、预订成功，但没有提机；"
+    "已提机=明确说已提机、已购买、已激活，或业务数据确认成交。"
+    "若同时满足多个标签，按 已提机 > 已预定未提机 > 未预定高意向 > 未预定低意向 > 未识别 的优先级选择。"
     "已预订/已预定视为同义，返回值统一用“已预定未提机”。只返回 JSON："
-    "{\"tag\": \"已预定未提机|未预定高意向|已提机|无法判断\", \"reason\": \"简短中文理由\"}"
+    "{\"tag\": \"未识别|未预定低意向|未预定高意向|已预定未提机|已提机\", \"reason\": \"简短中文理由\"}"
 )
-TAG_VALUES = ("已预定未提机", "未预定高意向", "已提机", "无法判断")
+TAG_VALUES = ("未识别", "未预定低意向", "未预定高意向", "已预定未提机", "已提机")
 
 
 def _semantic_prompt(item: dict) -> str:
@@ -63,14 +68,14 @@ def _parse_tag(text: object) -> dict:
     content = text if isinstance(text, str) else str(text)
     match = re.search(r"\{.*\}", content, re.S)
     if not match:
-        return {"tag": "无法判断", "reason": "无法解析: " + content[:80]}
+        return {"tag": "未识别", "reason": "无法解析: " + content[:80]}
     try:
         obj = json.loads(match.group(0))
     except ValueError:
-        return {"tag": "无法判断", "reason": "JSON解析失败"}
-    tag = str(obj.get("tag", "")).strip().replace("预订", "预定")
+        return {"tag": "未识别", "reason": "JSON解析失败"}
+    tag = str(obj.get("tag", "")).strip().replace("预订", "预定").replace("无法判断", "未识别")
     if tag not in TAG_VALUES:
-        tag = "无法判断"
+        tag = "未识别"
     return {"tag": tag, "reason": str(obj.get("reason", ""))[:120]}
 
 

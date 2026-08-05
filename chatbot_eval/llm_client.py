@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """OpenAI-compatible LLM client for L2 eval / RegressionRunner."""
 import json
+import os
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -14,9 +15,9 @@ class LlmConfigError(RuntimeError):
 
 def get_llm_config(project_root: Path | None = None) -> dict[str, str]:
     cfg = load_config(project_root)
-    key = cfg.get("LLM_API_KEY", "")
-    base = cfg.get("LLM_API_BASE", "").rstrip("/")
-    model = cfg.get("LLM_MODEL", "gpt-4o-mini")
+    key = os.environ.get("LLM_API_KEY") or cfg.get("LLM_API_KEY", "")
+    base = (os.environ.get("LLM_API_BASE") or cfg.get("LLM_API_BASE", "")).rstrip("/")
+    model = os.environ.get("LLM_MODEL") or cfg.get("LLM_MODEL", "gpt-4o-mini")
     if not key:
         raise LlmConfigError("缺少 LLM_API_KEY，请填写 config.env")
     if not base:

@@ -11,6 +11,7 @@ requires-python = ">=3.10"
 
 [project.scripts]
 aht-agent = "chatbot_eval.agent:main"
+aht-translate-cases = "chatbot_eval.translate_cases:main"
 
 [tool.setuptools.packages.find]
 include = ["chatbot_eval*", "profiles*"]

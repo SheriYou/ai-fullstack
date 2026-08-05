@@ -1,14 +1,17 @@
 ﻿用例ID,用例名称,执行步骤,预期结果,转人工触发条件,测试目标,前置条件,测试数据,测试数据（英文提问）,执行阶段,是否使用新会话,实际回复内容（英文）,是否存在知识库,知识库是否命中（日志）,知识库命中（人工复核）,日志客户标签,LLM推测预期标签,LLM判定客户标签是否准确,客户标签准确（人工复核）,转人工预期,日志转人工,转人工是否准确,转人工准确（人工复核）,语义是否合理（LLM）,回复是否准确（LLM）,回复准确（人工复核）,服务端真实耗时,接口响应时长,备注
 TC-H70-001-N,[HOT 70 Pro 商品信息] HOT70 Pro 5G有哪些配置？【标准问答场景】,步骤1：开启新的WhatsApp会话。步骤2：发送测试问题。步骤3：核对机器人识别业务场景。步骤4：等待机器人完整回复并核对核心事实。步骤5：确认回复未增加知识库之外的信息。步骤6：确认本轮未错误触发人工转接。,"HOT 70 Pro 5G+ Key Specs:
-• Display: 6.76-inch FHD+ LTPS LCD, 144Hz refresh rate, 950 nits HBM brightness
-• Chipset: MediaTek Dimensity 7100 5G
-• Memory: 128GB+8GB, with Extended RAM
-• Camera: 50MP SONY IMX882 rear camera + 8MP front camera
-• Battery: 6000mAh, 45W fast charge, max 10W reverse charging
-• Protection: IP68 dust & water resistance
-• OS: XOS 16, powered by Android 16
-• Special: Dynamic Shine Design + Active Matrix Cube + One-Tap AI FlashMemo
-• Colors: Night Pulse, Mirage Green, Dive Blue, Thermo Orange, Sleek Black, Silk Glow Purple
+• Display: 6.76-inch FHD+ LTPS LCD, 144Hz refresh rate, 950 nits peak brightness;
+• Chipset: MediaTek Dimensity 7100 5G, 6nm process;
+• Memory: 8GB RAM + 128GB storage, supports virtual RAM expansion and microSD expansion;
+• Rear camera: 50MP Sony IMX882, f/1.8 aperture, PDAF;
+• Front camera: 8MP, f/2.0 aperture;
+• Battery: 6000mAh, 45W wired fast charging, up to 10W reverse charging, bypass charging;
+• Protection: IP68 dust and water resistance plus MIL-STD-810H certification;
+• OS: XOS 16 based on Android 16;
+• Special features: Active Matrix Cube LED effects, temperature-sensitive color-changing Thermo Orange design, AI Eraser, AI Expansion, AI Live Photo and AI Wallpaper customization;
+• Dimensions and weight: 166.9 x 79.5 x 7.9 mm, 204 g;
+• Other features: NFC, side-mounted fingerprint sensor, stereo speakers, infrared remote control and 3.5mm headphone jack;
+• Colors: Night Pulse, Mirage Green, Dive Blue, Thermo Orange, Sleek Black, Silk Glow Purple.
 
 验收要求：核心事实正确、关键信息完整、无知识库外编造；标准问答场景下不应错误触发人工转接。",无（标准咨询场景）,验证意图分类、知识命中、回答准确性及错误转人工控制,1) 已接入Hot70 WhatsApp机器人；2) 测试账号可正常收发消息；3) 使用与上线一致的知识库、Prompt和模型配置；4) 可查看会话日志或Trace。,HOT70 Pro 5G有哪些配置？,What are the specifications of the HOT70 Pro 5G?,P0,是,,是,,,,,,,否,,,,,,,,,
 TC-H70-001-H-C01,[HOT 70 Pro 商品信息] HOT70 Pro 5G有哪些配置？【条件式转人工场景：price is uncertain】,步骤1：先执行关联标准用例“TC-H70-001-N”，并保持同一WhatsApp会话。步骤2：在同一会话继续追问场景问题：“price is uncertain”。步骤3：核对机器人识别到条件场景并触发人工转接。步骤4：确认转接前话术与当前问题相关。步骤5：确认未继续输出超范围确定性结论。,命中条件场景“price is uncertain”后，机器人应触发转人工；转接前话术应与当前问题相关，不得继续输出超范围确定性结论。,price is uncertain,验证多轮上下文理解、条件式转人工召回及转接话术相关性,1) 已完成“TC-H70-001-N”；2) 机器人已给出首轮回复；3) 当前仍保持同一会话；4) 尚未发生人工接管。,我遇到这个情况：price is uncertain,Could you help me with price is uncertain?,P0,否,,是,,,,,,,是,,,,,,,,,
@@ -28,8 +31,8 @@ TC-H70-002-N,[预订规则] 预定HOT 70 Pro的活动怎么参加？【标准问
 TC-H70-002-H-C01,[预订规则] 预定HOT 70 Pro的活动怎么参加？【条件式转人工场景：booking fails】,步骤1：先执行关联标准用例“TC-H70-002-N”，并保持同一WhatsApp会话。步骤2：在同一会话继续追问场景问题：“booking fails”。步骤3：核对机器人识别到条件场景并触发人工转接。步骤4：确认转接前话术与当前问题相关。步骤5：确认未继续输出超范围确定性结论。,命中条件场景“booking fails”后，机器人应触发转人工；转接前话术应与当前问题相关，不得继续输出超范围确定性结论。,booking fails,验证多轮上下文理解、条件式转人工召回及转接话术相关性,1) 已完成“TC-H70-002-N”；2) 机器人已给出首轮回复；3) 当前仍保持同一会话；4) 尚未发生人工接管。,我遇到这个情况：booking fails,Could you help me with booking fails?,P0,否,,是,,,,,,,是,,,,,,,,,
 TC-H70-002-H-C02,[预订规则] 预定HOT 70 Pro的活动怎么参加？【条件式转人工场景：entry page cannot be opened】,步骤1：先执行关联标准用例“TC-H70-002-N”，并保持同一WhatsApp会话。步骤2：在同一会话继续追问场景问题：“entry page cannot be opened”。步骤3：核对机器人识别到条件场景并触发人工转接。步骤4：确认转接前话术与当前问题相关。步骤5：确认未继续输出超范围确定性结论。,命中条件场景“entry page cannot be opened”后，机器人应触发转人工；转接前话术应与当前问题相关，不得继续输出超范围确定性结论。,entry page cannot be opened,验证多轮上下文理解、条件式转人工召回及转接话术相关性,1) 已完成“TC-H70-002-N”；2) 机器人已给出首轮回复；3) 当前仍保持同一会话；4) 尚未发生人工接管。,我遇到这个情况：entry page cannot be opened,Could you help me with entry page cannot be opened?,P0,否,,是,,,,,,,是,,,,,,,,,
 TC-H70-002-H-C03,[预订规则] 预定HOT 70 Pro的活动怎么参加？【条件式转人工场景：process is abnormal】,步骤1：先执行关联标准用例“TC-H70-002-N”，并保持同一WhatsApp会话。步骤2：在同一会话继续追问场景问题：“process is abnormal”。步骤3：核对机器人识别到条件场景并触发人工转接。步骤4：确认转接前话术与当前问题相关。步骤5：确认未继续输出超范围确定性结论。,命中条件场景“process is abnormal”后，机器人应触发转人工；转接前话术应与当前问题相关，不得继续输出超范围确定性结论。,process is abnormal,验证多轮上下文理解、条件式转人工召回及转接话术相关性,1) 已完成“TC-H70-002-N”；2) 机器人已给出首轮回复；3) 当前仍保持同一会话；4) 尚未发生人工接管。,我遇到这个情况：process is abnormal,Could you help me with process is abnormal?,P0,否,,是,,,,,,,是,,,,,,,,,
-TC-H70-003-N,[预订权益] 预订 HOT 70 Pro有什么福利？【标准问答场景】,步骤1：开启新的WhatsApp会话。步骤2：发送测试问题。步骤3：核对机器人识别业务场景。步骤4：等待机器人完整回复并核对核心事实。步骤5：确认回复未增加知识库之外的信息。步骤6：确认本轮未错误触发人工转接。,"Campaign benefits: 
-1. Users who purchase through the pre-order campaign, successfully pick up the phone, and pay the final balance with Palmpay can get an instant BDT 2,000 discount. 
+TC-H70-003-N,[预订权益] 预订 HOT 70 Pro有什么福利？【标准问答场景】,步骤1：开启新的WhatsApp会话。步骤2：发送测试问题。步骤3：核对机器人识别业务场景。步骤4：等待机器人完整回复并核对核心事实。步骤5：确认回复未增加知识库之外的信息。步骤6：确认本轮未错误触发人工转接。,"Campaign benefits:
+1. Users who purchase through the pre-order campaign, successfully pick up the phone, and pay the final balance with Palmpay can get an instant BDT 2,000 discount.
 2. Users who complete online pre-order and in-store pickup, add the official WhatsApp account, and upload the required information can join the free-order lucky draw. There is 1 free-order winner.
 
 验收要求：核心事实正确、关键信息完整、无知识库外编造；标准问答场景下不应错误触发人工转接。",无（标准咨询场景）,验证意图分类、知识命中、回答准确性及错误转人工控制,1) 已接入Hot70 WhatsApp机器人；2) 测试账号可正常收发消息；3) 使用与上线一致的知识库、Prompt和模型配置；4) 可查看会话日志或Trace。,预订 HOT 70 Pro有什么福利？,What are the benefits of booking the HOT 70 Pro?,P0,是,,是,,,,,,,否,,,,,,,,,
@@ -50,7 +53,7 @@ TC-H70-005-N,[门店信息] 哪里可以买/提HOT 70 Pro？【标准问答场�
 • Authorized KDM partners
 
 Tap ""Find a Store"" to locate the nearest Infinix store to you!
-[https://uat-paas.transsion.com/cmp-campaign-h5/hot70/view/online](https://uat-paas.transsion.com/cmp-campaign-h5/hot70/view/online)
+[https://hk-paas.transsion.com/cmp-campaign-h5/hot70/view/online](https://hk-paas.transsion.com/cmp-campaign-h5/hot70/view/online)
 
 验收要求：核心事实正确、关键信息完整、无知识库外编造；标准问答场景下不应错误触发人工转接。",无（标准咨询场景）,验证意图分类、知识命中、回答准确性及错误转人工控制,1) 已接入Hot70 WhatsApp机器人；2) 测试账号可正常收发消息；3) 使用与上线一致的知识库、Prompt和模型配置；4) 可查看会话日志或Trace。,哪里可以买/提HOT 70 Pro？,Where can I buy/pick up the HOT 70 Pro?,P0,是,,是,,,,,,,否,,,,,,,,,
 TC-H70-005-H-C01,[门店信息] 哪里可以买/提HOT 70 Pro？【条件式转人工场景：real-time inventory】,步骤1：先执行关联标准用例“TC-H70-005-N”，并保持同一WhatsApp会话。步骤2：在同一会话继续追问场景问题：“real-time inventory”。步骤3：核对机器人识别到条件场景并触发人工转接。步骤4：确认转接前话术与当前问题相关。步骤5：确认未继续输出超范围确定性结论。,命中条件场景“real-time inventory”后，机器人应触发转人工；转接前话术应与当前问题相关，不得继续输出超范围确定性结论。,real-time inventory,验证多轮上下文理解、条件式转人工召回及转接话术相关性,1) 已完成“TC-H70-005-N”；2) 机器人已给出首轮回复；3) 当前仍保持同一会话；4) 尚未发生人工接管。,我遇到这个情况：real-time inventory,Could you help me with real-time inventory?,P0,否,,是,,,,,,,是,,,,,,,,,
@@ -277,7 +280,7 @@ TC-H70-050-N,[HOT 70 Pro 商品信息] HOT 70 Pro 电池多大？【标准问答
 TC-H70-050-H-C01,[HOT 70 Pro 商品信息] HOT 70 Pro 电池多大？【条件式转人工场景：Transfer to a human agent when the user asks charging duration】,步骤1：先执行关联标准用例“TC-H70-050-N”，并保持同一WhatsApp会话。步骤2：在同一会话继续追问场景问题：“Transfer to a human agent when the user asks charging duration”。步骤3：核对机器人识别到条件场景并触发人工转接。步骤4：确认转接前话术与当前问题相关。步骤5：确认未继续输出超范围确定性结论。,命中条件场景“Transfer to a human agent when the user asks charging duration”后，机器人应触发转人工；转接前话术应与当前问题相关，不得继续输出超范围确定性结论。,Transfer to a human agent when the user asks charging duration,验证多轮上下文理解、条件式转人工召回及转接话术相关性,1) 已完成“TC-H70-050-N”；2) 机器人已给出首轮回复；3) 当前仍保持同一会话；4) 尚未发生人工接管。,我遇到这个情况：Transfer to a human agent when the user asks charging duration,Could you help me with Transfer to a human agent when the user asks charging duration?,,否,,是,,,,,,,是,,,,,,,,,
 TC-H70-050-H-C02,[HOT 70 Pro 商品信息] HOT 70 Pro 电池多大？【条件式转人工场景：full-charge time】,步骤1：先执行关联标准用例“TC-H70-050-N”，并保持同一WhatsApp会话。步骤2：在同一会话继续追问场景问题：“full-charge time”。步骤3：核对机器人识别到条件场景并触发人工转接。步骤4：确认转接前话术与当前问题相关。步骤5：确认未继续输出超范围确定性结论。,命中条件场景“full-charge time”后，机器人应触发转人工；转接前话术应与当前问题相关，不得继续输出超范围确定性结论。,full-charge time,验证多轮上下文理解、条件式转人工召回及转接话术相关性,1) 已完成“TC-H70-050-N”；2) 机器人已给出首轮回复；3) 当前仍保持同一会话；4) 尚未发生人工接管。,我遇到这个情况：full-charge time,Could you help me with full-charge time?,,否,,是,,,,,,,是,,,,,,,,,
 TC-H70-050-H-C03,[HOT 70 Pro 商品信息] HOT 70 Pro 电池多大？【条件式转人工场景：real-life battery endurance】,步骤1：先执行关联标准用例“TC-H70-050-N”，并保持同一WhatsApp会话。步骤2：在同一会话继续追问场景问题：“real-life battery endurance”。步骤3：核对机器人识别到条件场景并触发人工转接。步骤4：确认转接前话术与当前问题相关。步骤5：确认未继续输出超范围确定性结论。,命中条件场景“real-life battery endurance”后，机器人应触发转人工；转接前话术应与当前问题相关，不得继续输出超范围确定性结论。,real-life battery endurance,验证多轮上下文理解、条件式转人工召回及转接话术相关性,1) 已完成“TC-H70-050-N”；2) 机器人已给出首轮回复；3) 当前仍保持同一会话；4) 尚未发生人工接管。,我遇到这个情况：real-life battery endurance,Could you help me with real-life battery endurance?,,否,,是,,,,,,,是,,,,,,,,,
-TC-H70-051-N,[HOT 70 Pro 商品信息] 出厂系统版本是什么？支持 Google 服务吗？【标准问答场景】,步骤1：开启新的WhatsApp会话。步骤2：发送测试问题。步骤3：核对机器人识别业务场景。步骤4：等待机器人完整回复并核对核心事实。步骤5：确认回复未增加知识库之外的信息。步骤6：确认本轮未错误触发人工转接。,"HOT 70 Pro 5G comes with the latest Android system and supports full Google Mobile Services (GMS), including Google Play Store, Gmail, YouTube, and more. It also receives 3 years of OS updates and 5 years of security updates.
+TC-H70-051-N,[HOT 70 Pro 商品信息] 出厂系统版本是什么？支持 Google 服务吗？【标准问答场景】,步骤1：开启新的WhatsApp会话。步骤2：发送测试问题。步骤3：核对机器人识别业务场景。步骤4：等待机器人完整回复并核对核心事实。步骤5：确认回复未增加知识库之外的信息。步骤6：确认本轮未错误触发人工转接。,"HOT 70 Pro 5G comes with XOS 16 based on Android 16 and supports full Google Mobile Services (GMS), including Google Play Store, Gmail, YouTube, and more. It also receives 3 years of OS updates and 5 years of security updates.
 
 验收要求：核心事实正确、关键信息完整、无知识库外编造；标准问答场景下不应错误触发人工转接。",无（标准咨询场景）,验证意图分类、知识命中、回答准确性及错误转人工控制,1) 已接入Hot70 WhatsApp机器人；2) 测试账号可正常收发消息；3) 使用与上线一致的知识库、Prompt和模型配置；4) 可查看会话日志或Trace。,出厂系统版本是什么？支持 Google 服务吗？,What is the factory system version? Does it support Google services?,,是,,是,,,,,,,否,,,,,,,,,
 TC-H70-052-N,[售后/保修基础信息] 保修期多长？【标准问答场景】,步骤1：开启新的WhatsApp会话。步骤2：发送测试问题。步骤3：核对机器人识别业务场景。步骤4：等待机器人完整回复并核对核心事实。步骤5：确认回复未增加知识库之外的信息。步骤6：确认本轮未错误触发人工转接。,"HOT 70 Pro 5G comes with a standard 1-year manufacturer warranty covering hardware defects. Accessories may have separate warranty terms.
@@ -312,7 +315,7 @@ TC-H70-058-H-C02,[HOT 70 Pro 商品信息] HOT 70 Pro 和其他 Infinix 手机�
 TC-H70-059-N,[人工兜底规则] 预订后能修改手机号吗？【标准问答场景】,步骤1：开启新的WhatsApp会话。步骤2：发送测试问题。步骤3：核对机器人识别业务场景。步骤4：观察是否按规则触发人工转接。步骤5：确认未输出超出知识库的确定性结论。,该问题按知识库规则应直接触发转人工；转接前话术应与当前问题相关，不应输出超范围确定性结论。,该问题按规则直接转人工,验证直接转人工策略、转接话术相关性及知识边界控制,1) 已接入Hot70 WhatsApp机器人；2) 测试账号可正常收发消息；3) 使用与上线一致的知识库、Prompt和模型配置；4) 可查看会话日志或Trace。,预订后能修改手机号吗？,Can I change the phone number after booking?,,是,,是,,,,,,,是,,,,,,,,,
 TC-H70-060-N,[人工兜底规则] 怎么查我的预订状态？【标准问答场景】,步骤1：开启新的WhatsApp会话。步骤2：发送测试问题。步骤3：核对机器人识别业务场景。步骤4：观察是否按规则触发人工转接。步骤5：确认未输出超出知识库的确定性结论。,该问题按知识库规则应直接触发转人工；转接前话术应与当前问题相关，不应输出超范围确定性结论。,该问题按规则直接转人工,验证直接转人工策略、转接话术相关性及知识边界控制,1) 已接入Hot70 WhatsApp机器人；2) 测试账号可正常收发消息；3) 使用与上线一致的知识库、Prompt和模型配置；4) 可查看会话日志或Trace。,怎么查我的预订状态？,How can I check my booking status?,,是,,是,,,,,,,是,,,,,,,,,
 TC-H70-061-N,[门店信息] 门店营业时间是什么？【标准问答场景】,步骤1：开启新的WhatsApp会话。步骤2：发送测试问题。步骤3：核对机器人识别业务场景。步骤4：等待机器人完整回复并核对核心事实。步骤5：确认回复未增加知识库之外的信息。步骤6：确认本轮未错误触发人工转接。,"Store hours may vary by location. Most Infinix stores are open from 10:00 AM to 9:00 PM. For the exact opening hours of your selected store, please tap ""Find a Store"" .
-[https://uat-paas.transsion.com/cmp-campaign-h5/hot70/view/online](https://uat-paas.transsion.com/cmp-campaign-h5/hot70/view/online)
+[https://hk-paas.transsion.com/cmp-campaign-h5/hot70/view/online](https://hk-paas.transsion.com/cmp-campaign-h5/hot70/view/online)
 
 验收要求：核心事实正确、关键信息完整、无知识库外编造；标准问答场景下不应错误触发人工转接。",无（标准咨询场景）,验证意图分类、知识命中、回答准确性及错误转人工控制,1) 已接入Hot70 WhatsApp机器人；2) 测试账号可正常收发消息；3) 使用与上线一致的知识库、Prompt和模型配置；4) 可查看会话日志或Trace。,门店营业时间是什么？,What are the store hours?,,是,,是,,,,,,,否,,,,,,,,,
 TC-H70-061-H-C01,[门店信息] 门店营业时间是什么？【条件式转人工场景：Transfer to a human agent when the user asks about the business hours of a specific store】,步骤1：先执行关联标准用例“TC-H70-061-N”，并保持同一WhatsApp会话。步骤2：在同一会话继续追问场景问题：“Transfer to a human agent when the user asks about the business hours of a specific store”。步骤3：核对机器人识别到条件场景并触发人工转接。步骤4：确认转接前话术与当前问题相关。步骤5：确认未继续输出超范围确定性结论。,命中条件场景“Transfer to a human agent when the user asks about the business hours of a specific store”后，机器人应触发转人工；转接前话术应与当前问题相关，不得继续输出超范围确定性结论。,Transfer to a human agent when the user asks about the business hours of a specific store,验证多轮上下文理解、条件式转人工召回及转接话术相关性,1) 已完成“TC-H70-061-N”；2) 机器人已给出首轮回复；3) 当前仍保持同一会话；4) 尚未发生人工接管。,我遇到这个情况：Transfer to a human agent when the user asks about the business hours of a specific store,Could you help me with Transfer to a human agent when the user asks about the business hours of a specific store?,,否,,是,,,,,,,是,,,,,,,,,
